@@ -31,9 +31,10 @@ originele install. Zie [install-troubleshooting.md](install-troubleshooting.md)
 voor de volledige symptoom→oorzaak→fix-tabel als iets onderweg misgaat; hier
 alleen de happy path.
 
-Volg `~/build-okd-sno.sh` (uit de backup, zie stap 0) — dat script bakt de
-ignition met de install-quirks die tijdens de originele install zijn
-gevonden:
+Volg [`scripts/install/build-okd-sno.sh`](../scripts/install/build-okd-sno.sh)
+(uit deze repo — werkt vanuit `~/okd-sno` als workdir voor de grote
+binaries/ISO/secrets, die horen niet in git) — dat script bakt de ignition
+met de install-quirks die tijdens de originele install zijn gevonden:
 
 1. **Static ethernet + IPv6 disabled in de ignition zelf** (niet als
    MachineConfig — die werken pas ná bootstrap, te laat voor de Ziggo

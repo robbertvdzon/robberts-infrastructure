@@ -74,7 +74,7 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
 | Wat | Waar |
 |---|---|
 | OpenShift-installer, ISO, pull-secret, install-config, admin-kubeconfig | `~/okd-sno/` (lokaal, niet in git) |
-| ISO-buildscript voor disaster recovery | `~/build-okd-sno.sh` (let op: **niet** in `~/okd-sno/` zoals `handoff.md` zegt — makkelijk te missen) |
+| ISO-buildscript voor disaster recovery | [`scripts/install/build-okd-sno.sh`](../scripts/install/build-okd-sno.sh) in **deze repo** — `~/build-okd-sno.sh` is sinds 2026-07-07 alleen nog een dunne wrapper ernaartoe, geen aparte kopie meer |
 | App-bootstrap (ArgoCD, Sealed Secrets, storage, Reflector) | `personal-news-feed-by-claude-code/deploy/bootstrap.sh` |
 | App-manifesten + Applications | eigen repo per app (`deploy/`) |
 | Node-level MachineConfigs, backup-scripts, playbooks | **deze repo** |

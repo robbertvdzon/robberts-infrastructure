@@ -24,11 +24,12 @@ docs/
   manual-external-steps.md          — dingen die NIET in een script zitten (DNS, Cloudflare, router)
 
 manifests/
-  machineconfigs/                   — de 2 node-level configs die nu alleen los op het cluster stonden
-  smb-timemachine/                  — Samba-share op de losse schijf voor Time Machine-backups (getest, werkend)
+  machineconfigs/                   — de 4 node-level configs die nu alleen los op het cluster stonden
+  smb-timemachine/                  — Samba-share op de losse schijf voor Time Machine-backups (getest, werkend, 4e ArgoCD Application)
   agent-access/                     — read-only ServiceAccount voor Claude Code/agents/assistent
 
 scripts/
+  install/                          — build-okd-sno.sh (het ISO-buildscript — verhuisd hierheen, was alleen lokaal)
   backup/                           — backup-all.sh + restore-sealed-secrets-key.sh
   machineconfig/                    — apply-machineconfigs.sh
   disk/                             — 4TB → 12TB migratiescripts

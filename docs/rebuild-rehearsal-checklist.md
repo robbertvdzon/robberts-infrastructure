@@ -46,15 +46,17 @@ doe het toch even (encrypted USB / 1Password) — kost een minuut.
 ## Fase 2 — USB-stick maken
 
 ```bash
-cd ~/okd-sno
-./build-okd-sno.sh
+~/git/robberts-infrastructure/scripts/install/build-okd-sno.sh
 ```
 
+(Het script cd't zelf naar `~/okd-sno` — daar staan de grote binaries/ISO/
+secrets die niet in git horen, zie [architecture.md](architecture.md).)
 Dit hergenereert `sno/` en bakt een verse `scos-live.iso` met alle
 install-fixes erin (zie [install-troubleshooting.md](install-troubleshooting.md)
 als je nieuwsgierig bent wélke). Daarna flashen:
 
 ```bash
+cd ~/okd-sno
 diskutil list external          # zoek je USB-stick, bv. /dev/disk4
 diskutil unmountDisk /dev/disk4
 sudo dd if=scos-live.iso of=/dev/rdisk4 bs=1m status=progress

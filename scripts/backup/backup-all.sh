@@ -33,14 +33,14 @@ echo "[backup] cluster: $(oc whoami --show-server)"
 
 # ─── 1. Sealed-secrets private key(s) — HET belangrijkste item ───────────
 echo
-echo "[1/7] sealed-secrets private key(s)"
+echo "[1/6] sealed-secrets private key(s)"
 oc get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml > "$OUT/sealed-secrets-keys.yaml"
 n_keys=$(grep -c '^    name: sealed-secrets-key' "$OUT/sealed-secrets-keys.yaml" || true)
 echo "       $n_keys key(s) weggeschreven naar sealed-secrets-keys.yaml"
 
 # ─── 2. Cluster-admin toegang + install-inputs ────────────────────────────
 echo
-echo "[2/7] ~/okd-sno auth + install-inputs"
+echo "[2/6] ~/okd-sno auth + install-inputs"
 mkdir -p "$OUT/okd-sno"
 for f in sno/auth/kubeconfig sno/auth/kubeadmin-password install-config.yaml pull-secret.txt; do
   if [[ -f "$OKD_SNO_DIR/$f" ]]; then
@@ -51,20 +51,12 @@ for f in sno/auth/kubeconfig sno/auth/kubeadmin-password install-config.yaml pul
     echo "       ontbreekt: $f (skip)"
   fi
 done
+# build-okd-sno.sh hoeft hier niet meer bij: zit al in deze repo
+# (scripts/install/build-okd-sno.sh), dus al veilig in git + GitHub.
 
-# ─── 3. ISO-buildscript (let op: staat NIET in ~/okd-sno/) ────────────────
+# ─── 3. SSH key voor de node ───────────────────────────────────────────────
 echo
-echo "[3/7] build-okd-sno.sh"
-if [[ -f "$HOME/build-okd-sno.sh" ]]; then
-  cp "$HOME/build-okd-sno.sh" "$OUT/build-okd-sno.sh"
-  echo "       ok"
-else
-  echo "       WAARSCHUWING: ~/build-okd-sno.sh niet gevonden — disaster-recovery ISO-build ontbreekt"
-fi
-
-# ─── 4. SSH key voor de node ───────────────────────────────────────────────
-echo
-echo "[4/7] SSH key (~/.ssh/okd-sno)"
+echo "[3/6] SSH key (~/.ssh/okd-sno)"
 if [[ -f "$SSH_KEY" ]]; then
   mkdir -p "$OUT/ssh"
   cp "$SSH_KEY" "$SSH_KEY.pub" "$OUT/ssh/" 2>/dev/null || true
@@ -74,9 +66,9 @@ else
   echo "       ontbreekt (skip)"
 fi
 
-# ─── 5. Live MachineConfigs (diff-vangnet t.o.v. manifests/machineconfigs/) ─
+# ─── 4. Live MachineConfigs (diff-vangnet t.o.v. manifests/machineconfigs/) ─
 echo
-echo "[5/7] live MachineConfigs (diff-check)"
+echo "[4/6] live MachineConfigs (diff-check)"
 mkdir -p "$OUT/machineconfigs-live"
 for mc in 50-local-storage-mount 99-master-strip-bad-search-domain; do
   if oc get machineconfig "$mc" -o yaml >/dev/null 2>&1; then
@@ -99,9 +91,9 @@ for mc in 50-local-storage-mount 99-master-strip-bad-search-domain; do
   fi
 done
 
-# ─── 6. Plaintext secrets-bronnen (gitignored in de app-repo's) ───────────
+# ─── 5. Plaintext secrets-bronnen (gitignored in de app-repo's) ───────────
 echo
-echo "[6/7] secrets.env / secrets-cluster.env uit app-repo's"
+echo "[5/6] secrets.env / secrets-cluster.env uit app-repo's"
 mkdir -p "$OUT/app-secrets"
 # Simpele lijst i.p.v. associative array — macOS' meegeleverde /bin/bash is
 # 3.2 (geen declare -A support, dat kwam pas in bash 4).
@@ -117,9 +109,9 @@ copy_app_secret() {
 copy_app_secret "softwarefactory-secrets.env" "$SF_REPO/secrets.env"
 copy_app_secret "personal-news-feed-secrets-cluster.env" "$PNF_REPO/deploy/secrets-cluster.env"
 
-# ─── 7. Samenvatting ───────────────────────────────────────────────────────
+# ─── 6. Samenvatting ───────────────────────────────────────────────────────
 echo
-echo "[7/7] samenvatting"
+echo "[6/6] samenvatting"
 find "$OUT" -type f | sed "s|$OUT/|       |"
 
 cat > "$OUT/MANIFEST.txt" <<EOF

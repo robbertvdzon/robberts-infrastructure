@@ -2,7 +2,7 @@
 
 De originele install (11-12 mei 2026) kostte **6 pogingen en ~18 uur** voordat
 alles werkte. Elk van onderstaande problemen is al opgelost en verwerkt in
-`~/build-okd-sno.sh` en de MachineConfigs in
+[`scripts/install/build-okd-sno.sh`](../scripts/install/build-okd-sno.sh) en de MachineConfigs in
 [`../manifests/machineconfigs/`](../manifests/machineconfigs/) — dit document
 is de lookup-tabel voor als iets tijdens een toekomstige rebuild ineens weer
 bekend voelt. Bron: samenvatting door Robbert, `openshift-sno-rebuild.md`.
@@ -111,9 +111,11 @@ zelf. **Status: al goed** in
 - ✅ Alles via MachineConfig voor persistente node-wijzigingen; voor node-
   debugging `oc debug node/sno.lab.vdzon.com` i.p.v. losse SSH-wijzigingen
 
-## Ontbrekend stuk in `~/build-okd-sno.sh`
+## Status: script zelf ook gefixt (2026-07-07)
 
-Het script print zelf nog steeds alleen `dmsetup remove_all` + `wipefs -a`
-als disk-wipe-instructie (zie hierboven, Probleem 2) — de `vgchange -an`-stap
-staat er niet in. Dit playbook is bijgewerkt; het script zelf (buiten git, in
-`~/build-okd-sno.sh`) nog niet — zeg het als je wil dat ik dat ook aanpas.
+`build-okd-sno.sh` stond tot 2026-07-07 alleen lokaal (`~/build-okd-sno.sh`,
+niet in git — precies het soort ding dat dit hele repo moet voorkomen). Nu
+verhuisd naar [`scripts/install/build-okd-sno.sh`](../scripts/install/build-okd-sno.sh);
+`~/build-okd-sno.sh` is een dunne wrapper ernaartoe. De `vgchange -an`-stap
+(Probleem 2) staat nu ook in de door het script geprinte instructies, niet
+meer alleen in dit document.
