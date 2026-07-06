@@ -136,12 +136,15 @@ cd ~/git/personal-news-feed-by-claude-code
 ```
 
 YouTrack en het softwarefactory-dashboard hebben geen eigen bootstrap-script
-— die Applications moet je los `apply`'en:
+— die Applications moet je los `apply`'en. YouTrack's cluster-scoped
+prerequisites (namespace + SCC's) staan als commentaar bovenaan
+[`manifests/youtrack/argocd-application.yaml`](../manifests/youtrack/argocd-application.yaml):
 
 ```bash
+oc apply -f manifests/youtrack/argocd-application.yaml
+
 cd ~/git/softwarefactory
 oc apply -n argocd -f deploy/argocd-application.yaml
-oc apply -n argocd -f deploy/youtrack-application.yaml
 ```
 
 ## 5. Verifiëren dat de secrets goed zijn aangekomen

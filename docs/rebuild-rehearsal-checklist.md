@@ -135,13 +135,12 @@ cd ~/git/personal-news-feed-by-claude-code
 
 Overige 3 Applications:
 ```bash
-cd ~/git/softwarefactory
-oc apply -n argocd -f deploy/argocd-application.yaml
-oc apply -n argocd -f deploy/youtrack-application.yaml
-
-cd ~/git/robberts-infrastructure
+oc apply -f manifests/youtrack/argocd-application.yaml
 oc apply -f manifests/smb-timemachine/namespace.yaml
 oc apply -f manifests/smb-timemachine/argocd-application.yaml
+
+cd ~/git/softwarefactory
+oc apply -n argocd -f deploy/argocd-application.yaml
 ```
 
 Read-only agent-toegang (voor Claude Code/tester-agents/Telegram-assistent):

@@ -64,11 +64,20 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
 - Geen app-of-apps-patroon: elke app heeft een eigen `Application`-resource die **los**
   `oc apply`'d wordt (geen root-Application die ze allemaal aanmaakt). Vier apps:
   - `personal-news-feed` (uit `personal-news-feed-by-claude-code` repo)
-  - `youtrack` (uit `software-factory` repo, `deploy/youtrack`)
+  - `youtrack` (uit **deze** repo, `manifests/youtrack`)
   - `softwarefactory-dashboard` (uit `software-factory` repo, `deploy/base`)
-  - `smb-timemachine` (uit **deze** repo, `manifests/smb-timemachine`) — de enige
-    app die vanuit `robberts-infrastructure` zelf gesynct wordt in plaats van
-    vanuit een app-repo
+  - `smb-timemachine` (uit **deze** repo, `manifests/smb-timemachine`)
+
+  Robbert wil op termijn alle infra hier hebben, ook app-specifieke deploy-
+  manifesten (niet alleen de cluster-brede lijmlaag). YouTrack is daarvan de
+  eerste (2026-07-07): volledig statisch (geen CI-image-bump, geen preview-
+  koppeling), dus zonder complicaties te verplaatsen. `personal-news-feed`
+  en `softwarefactory-dashboard` blijven voorlopig in hun eigen repo — hun
+  CI bumpt de image-tag in dezelfde commit als de build, en personal-news-
+  feed's PR-previews zijn tightly coupled aan per-PR-branch-manifesten in
+  dat repo. Verhuizen kan, maar vereist een cross-repo GitHub-token voor CI
+  én (voor personal-news-feed) een herontwerp van het preview-mechanisme —
+  bewust nog niet gedaan.
 - **Sealed Secrets**: elke app committed een `SealedSecret` in git, versleuteld met het
   publieke cert van de sealed-secrets-controller. De **private key** leeft alleen in-cluster
   (`kube-system`, secret met label `sealedsecrets.bitnami.com/sealed-secrets-key`) — die

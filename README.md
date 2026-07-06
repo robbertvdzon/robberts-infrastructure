@@ -4,11 +4,16 @@ Alles wat nodig is om de thuis-OpenShift-server (SNO, `sno.lab.vdzon.com`) opnie
 op te bouwen zodat hij **exact** weer werkt zoals nu — plus het onderhoud daarna
 (disk-swap, backups).
 
-Deze repo bevat bewust **niet** de app-specifieke deploy-manifesten — die blijven
-in de eigen repo van elke app (`personal-news-feed-by-claude-code/deploy`,
-`softwarefactory/deploy`). Deze repo is de **lijmlaag**: alles wat op node-/
-cluster-niveau zit en niet bij één specifieke app hoort, plus de documentatie die
-de stappen uit al die repo's aan elkaar rijgt tot één playbook.
+Doel: uiteindelijk staat **alle** infra hier, ook app-specifieke deploy-
+manifesten (niet alleen de cluster-brede lijmlaag). YouTrack is daarvan de
+eerste (`manifests/youtrack/`) — volledig statisch, dus zonder complicaties
+te verplaatsen. `personal-news-feed-by-claude-code/deploy` en
+`software-factory/deploy` blijven voorlopig staan waar ze staan: hun CI
+bumpt image-tags in dezelfde commit als de build, en personal-news-feed's
+PR-previews zijn gekoppeld aan per-PR-branch-manifesten in dat repo —
+verhuizen kan, maar vereist een cross-repo GitHub-token voor CI en (voor
+personal-news-feed) een herontwerp van het preview-mechanisme. Zie
+[docs/architecture.md](docs/architecture.md) voor de volledige afweging.
 
 ## Structuur
 
@@ -27,6 +32,7 @@ docs/
 manifests/
   machineconfigs/                   — de 4 node-level configs die nu alleen los op het cluster stonden
   cluster-bootstrap/                — ArgoCD-operator-Subscription + ArgoCD CR (cluster-breed, verhuisd uit personal-news-feed)
+  youtrack/                         — YouTrack-deploy + ArgoCD Application (verhuisd uit software-factory, eerste volledig verplaatste app)
   smb-timemachine/                  — Samba-share op de losse schijf voor Time Machine-backups (getest, werkend, 4e ArgoCD Application)
   agent-access/                     — read-only ServiceAccount voor Claude Code/agents/assistent
 
@@ -52,7 +58,7 @@ scripts/
 | Repo | Rol |
 |---|---|
 | [`personal-news-feed-by-claude-code`](https://github.com/robbertvdzon/personal-news-feed-by-claude-code) | Eigen `deploy/bootstrap.sh` — alleen nog het app-specifieke deel (namespace, secrets, Application); het cluster-brede deel staat sinds 2026-07-07 in `scripts/bootstrap/bootstrap-cluster.sh` hierboven |
-| [`software-factory`](https://github.com/robbertvdzon/software-factory) | YouTrack + softwarefactory-dashboard, eigen `deploy/*-application.yaml` (eenmalig `oc apply`, geen eigen bootstrap-script) |
+| [`software-factory`](https://github.com/robbertvdzon/software-factory) | softwarefactory-dashboard, eigen `deploy/argocd-application.yaml` (eenmalig `oc apply`, geen eigen bootstrap-script). YouTrack is verhuisd naar `manifests/youtrack/` hierboven. |
 
 ## Belangrijkste gotcha
 
