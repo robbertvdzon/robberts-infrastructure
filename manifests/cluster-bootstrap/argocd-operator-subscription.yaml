@@ -1,0 +1,19 @@
+# Subscription op de community argocd-operator via OperatorHub.
+# Bootstrap apply't 'm op een vers cluster zodat we niet vanuit de UI
+# hoeven te klikken. installPlanApproval=Automatic accepteert nieuwe
+# versies binnen het 'alpha'-channel; pin handmatig naar een vaste
+# startingCSV als je dat strakker wilt.
+#
+# Verhuisd hierheen vanuit personal-news-feed-by-claude-code/deploy/
+# (2026-07-07) — dit is cluster-brede bootstrap, geen app-specifiek ding.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: argocd-operator
+  namespace: openshift-operators
+spec:
+  channel: alpha
+  installPlanApproval: Automatic
+  name: argocd-operator
+  source: community-operators
+  sourceNamespace: openshift-marketplace

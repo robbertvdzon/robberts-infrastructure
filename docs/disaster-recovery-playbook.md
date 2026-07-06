@@ -106,30 +106,37 @@ ssh -i ~/.ssh/okd-sno core@192.168.178.64 'df -h /var/mnt/localpv; cat /etc/reso
 
 ## 3. ArgoCD, Sealed Secrets, storage, Reflector
 
+Cluster-breed, niet app-specifiek — leeft daarom in déze repo, niet in een
+app-repo (zie [architecture.md](architecture.md)):
+
 ```bash
-cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh
+./scripts/bootstrap/bootstrap-cluster.sh
 ```
 
-**Stop hier zodra je in de output "[3/13] Sealed Secrets controller" ziet
+**Stop hier zodra je in de output "[3/7] Sealed Secrets controller" ziet
 verschijnen en de rollout klaar is** (of run het script gewoon door — het is
 idempotent, je kan het na de key-restore gewoon nog een keer draaien):
 
 ```bash
 # Direct na de sealed-secrets-controller install, VOORDAT je verder gaat:
-cd ~/git/robberts-infrastructure
 ./scripts/backup/restore-sealed-secrets-key.sh <backup>/sealed-secrets-keys.yaml
 ```
 
-Draai daarna `./deploy/bootstrap.sh` in personal-news-feed nogmaals (idempotent)
-om de resterende stappen (ApplicationSet, preview-ns-labeller, Application) af
-te maken.
+Draai daarna `./scripts/bootstrap/bootstrap-cluster.sh` nogmaals (idempotent)
+om de resterende stappen (storage, Reflector) af te maken.
 
-## 4. Overige apps
+## 4. Apps
 
-`bootstrap.sh` deployt alleen `personal-news-feed` zelf. YouTrack en het
-softwarefactory-dashboard hebben geen eigen bootstrap-script — die Applications
-moet je los `apply`'en:
+Elke app heeft nu een eigen, kortere bootstrap-stap (checkt zelf of stap 3
+al gedraaid is):
+
+```bash
+cd ~/git/personal-news-feed-by-claude-code
+./deploy/bootstrap.sh
+```
+
+YouTrack en het softwarefactory-dashboard hebben geen eigen bootstrap-script
+— die Applications moet je los `apply`'en:
 
 ```bash
 cd ~/git/softwarefactory

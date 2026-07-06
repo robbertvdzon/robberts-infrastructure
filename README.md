@@ -26,11 +26,13 @@ docs/
 
 manifests/
   machineconfigs/                   — de 4 node-level configs die nu alleen los op het cluster stonden
+  cluster-bootstrap/                — ArgoCD-operator-Subscription + ArgoCD CR (cluster-breed, verhuisd uit personal-news-feed)
   smb-timemachine/                  — Samba-share op de losse schijf voor Time Machine-backups (getest, werkend, 4e ArgoCD Application)
   agent-access/                     — read-only ServiceAccount voor Claude Code/agents/assistent
 
 scripts/
   install/                          — build-okd-sno.sh (het ISO-buildscript — verhuisd hierheen, was alleen lokaal)
+  bootstrap/                        — bootstrap-cluster.sh (ArgoCD/Sealed Secrets/storage/Reflector — verhuisd uit personal-news-feed)
   backup/                           — backup-all.sh + restore-sealed-secrets-key.sh
   machineconfig/                    — apply-machineconfigs.sh
   disk/                             — 4TB → 12TB migratiescripts
@@ -49,7 +51,7 @@ scripts/
 
 | Repo | Rol |
 |---|---|
-| [`personal-news-feed-by-claude-code`](https://github.com/robbertvdzon/personal-news-feed-by-claude-code) | Eigen `deploy/bootstrap.sh` installeert ArgoCD-operator, ArgoCD zelf, Sealed Secrets, local-path-provisioner, Reflector — de basis waar alle andere apps op leunen |
+| [`personal-news-feed-by-claude-code`](https://github.com/robbertvdzon/personal-news-feed-by-claude-code) | Eigen `deploy/bootstrap.sh` — alleen nog het app-specifieke deel (namespace, secrets, Application); het cluster-brede deel staat sinds 2026-07-07 in `scripts/bootstrap/bootstrap-cluster.sh` hierboven |
 | [`software-factory`](https://github.com/robbertvdzon/software-factory) | YouTrack + softwarefactory-dashboard, eigen `deploy/*-application.yaml` (eenmalig `oc apply`, geen eigen bootstrap-script) |
 
 ## Belangrijkste gotcha

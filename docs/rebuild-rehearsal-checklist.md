@@ -114,19 +114,23 @@ oc get mcp master -w                              # wacht tot UPDATED=True, dan 
 ```
 
 ```bash
-cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh                              # installeert ArgoCD, Sealed Secrets, storage, Reflector
+./scripts/bootstrap/bootstrap-cluster.sh           # ArgoCD, Sealed Secrets, storage, Reflector — cluster-breed
 ```
 
-**Zodra je "[3/13] Sealed Secrets controller" voorbij ziet komen** (of
-gewoon nadat het script helemaal klaar is — maakt niet uit, hieronder werkt
-sowieso):
+**Zodra je "[3/7] Sealed Secrets controller" voorbij ziet komen** (of gewoon
+nadat het script helemaal klaar is — maakt niet uit, hieronder werkt sowieso):
 
 ```bash
-cd ~/git/robberts-infrastructure
 ./scripts/backup/restore-sealed-secrets-key.sh backups/<timestamp>/sealed-secrets-keys.yaml
+./scripts/bootstrap/bootstrap-cluster.sh           # nogmaals — idempotent, maakt de rest af
+```
+
+Daarna de app-specifieke bootstrap van personal-news-feed (checkt zelf of
+het cluster-brede deel hierboven al staat):
+
+```bash
 cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh                              # nogmaals — idempotent, maakt de rest af
+./deploy/bootstrap.sh
 ```
 
 Overige 3 Applications:

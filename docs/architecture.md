@@ -53,8 +53,14 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
 ## GitOps-laag
 
 - **ArgoCD** (community `argocd-operator` via OLM, niet de Red Hat OpenShift GitOps-operator)
-  wordt gebootstrapt door `personal-news-feed-by-claude-code/deploy/bootstrap.sh` — dat script
-  installeert ook Sealed Secrets, local-path-provisioner en Reflector.
+  wordt gebootstrapt door [`scripts/bootstrap/bootstrap-cluster.sh`](../scripts/bootstrap/bootstrap-cluster.sh)
+  in **deze repo** — dat script installeert ook Sealed Secrets, local-path-provisioner
+  en Reflector. Verhuisd hierheen vanuit `personal-news-feed-by-claude-code/deploy/bootstrap.sh`
+  (2026-07-07): dat was cluster-brede bootstrap die toevallig in de eerste
+  app-repo was beland, niet iets specifiek voor die app — youtrack/dashboard/
+  smb-timemachine leunen er net zo goed op. Elke app heeft daarna nog een
+  eigen, kortere app-specifieke bootstrap-stap (namespace, app-secrets, de
+  Application zelf) — zie bv. `personal-news-feed-by-claude-code/deploy/bootstrap.sh`.
 - Geen app-of-apps-patroon: elke app heeft een eigen `Application`-resource die **los**
   `oc apply`'d wordt (geen root-Application die ze allemaal aanmaakt). Vier apps:
   - `personal-news-feed` (uit `personal-news-feed-by-claude-code` repo)
@@ -75,7 +81,8 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
 |---|---|
 | OpenShift-installer, ISO, pull-secret, install-config, admin-kubeconfig | `~/okd-sno/` (lokaal, niet in git). Installer/ISO herdownloaden: [download-install-tools.md](download-install-tools.md); pull-secret hoort ook in 1Password |
 | ISO-buildscript voor disaster recovery | [`scripts/install/build-okd-sno.sh`](../scripts/install/build-okd-sno.sh) in **deze repo** — `~/build-okd-sno.sh` is sinds 2026-07-07 alleen nog een dunne wrapper ernaartoe, geen aparte kopie meer |
-| App-bootstrap (ArgoCD, Sealed Secrets, storage, Reflector) | `personal-news-feed-by-claude-code/deploy/bootstrap.sh` |
+| Cluster-bootstrap (ArgoCD, Sealed Secrets, storage, Reflector) | [`scripts/bootstrap/bootstrap-cluster.sh`](../scripts/bootstrap/bootstrap-cluster.sh) in **deze repo** |
+| App-specifieke bootstrap (namespace, app-secrets, Application) | eigen repo per app (`deploy/bootstrap.sh` of gewoon `oc apply`) |
 | App-manifesten + Applications | eigen repo per app (`deploy/`) |
 | Node-level MachineConfigs, backup-scripts, playbooks | **deze repo** |
 
