@@ -6,7 +6,13 @@
 # /var/mnt/localpv op de node, niet in een k8s-object, dus prune van de
 # k8s-resources is hier veilig).
 #
-# oc apply -f manifests/smb-timemachine/argocd-application.yaml
+# Cluster-scoped prerequisite (eenmalig, met de hand — kan ArgoCD niet, zie
+# namespace.yaml/kustomization.yaml: deze ArgoCD-instance draait "namespaced
+# mode" en mag geen Namespace-object zelf beheren, zelfde patroon als bij
+# youtrack in software-factory):
+#   oc apply -f manifests/smb-timemachine/namespace.yaml
+#   # daarna deze Application aanmaken:
+#   oc apply -f manifests/smb-timemachine/argocd-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
