@@ -41,6 +41,15 @@ Deze zaten alleen live op het cluster of in `~/okd-sno/`, nu overgezet naar
    `lab.vdzon.com` uit de DNS search-line van elke pod strip't (zie DNS-gotcha hierboven).
    Zonder deze fix: console 60s+ per pagina, exact het probleem uit de originele install.
 
+## Toegang / credentials
+
+Twee niveaus: een break-glass admin-credential (1Password, alleen handmatig,
+alleen voor install en ArgoCD-bootstrap) en een read-only `claude-agent`
+ServiceAccount (met één bewuste, gedocumenteerde schrijf-uitzondering voor
+preview-namespace-cleanup) voor al het automatische gebruik — Claude Code,
+tester/refiner-agents, de Telegram-assistent. Volledige uitleg en de exacte
+RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
+
 ## GitOps-laag
 
 - **ArgoCD** (community `argocd-operator` via OLM, niet de Red Hat OpenShift GitOps-operator)

@@ -1,0 +1,22 @@
+# BEWUSTE, GEDOCUMENTEERDE UITZONDERING op "alles moet via ArgoCD":
+# OcPreviewEnvironmentCleaner.kt (software-factory) draait automatisch
+# `oc delete project <pnf-pr-N>` zodra een preview-PR sluit — ArgoCD's eigen
+# prune ruimt de Application-resources op maar niet de namespace zelf (zie
+# personal-news-feed-by-claude-code/deploy/README.md, "Preview-deploys per PR").
+#
+# RBAC kan niet op naam-patroon filteren (geen "alleen pnf-pr-*"), dus dit is
+# cluster-breed delete op Project/Namespace. Geaccepteerd risico: dit account
+# zou in theorie ELKE namespace kunnen verwijderen, niet alleen previews. Er is
+# bewust NIET gekozen voor een aparte credential per code-pad — zie
+# ../../docs/access-and-credentials.md voor de afweging.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agent-preview-cleanup
+rules:
+  - apiGroups: ["project.openshift.io"]
+    resources: ["projects"]
+    verbs: ["delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["delete"]

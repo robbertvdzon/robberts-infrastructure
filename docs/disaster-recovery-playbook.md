@@ -116,13 +116,24 @@ decrypt): check `oc logs -n kube-system deploy/sealed-secrets-controller` op
 decrypt-errors — dat betekent dat de key-restore (stap 3) niet gelukt is en je
 alsnog moet resealen (zie [backup-and-restore.md](backup-and-restore.md)).
 
-## 6. SMB / Time Machine share
+## 6. Read-only agent-toegang (Claude Code, tester/refiner-agents, Telegram-assistent)
+
+```bash
+oc apply -k manifests/agent-access/
+```
+
+Genereer daarna een nieuw token + kubeconfig (zie
+[access-and-credentials.md](access-and-credentials.md)) en zet dat pad in
+`SF_KUBECONFIG` in `software-factory/secrets.env` — dit gebruik je vanaf nu
+voor al het niet-menselijke `oc`-gebruik, **niet** het admin-kubeconfig.
+
+## 7. SMB / Time Machine share
 
 Zie [../manifests/smb-timemachine/README.md](../manifests/smb-timemachine/README.md)
 voor de volledige installatie (SCC-grant + credentials-secret zijn losse
 stappen, niet onderdeel van de kustomization).
 
-## 7. Externe, niet-gescripte stukken
+## 8. Externe, niet-gescripte stukken
 
 Deze zijn NIET cluster-afhankelijk en horen dus al te kloppen — controleer
 alleen dat ze niet per ongeluk gewijzigd zijn. Zie
@@ -137,7 +148,7 @@ alleen dat ze niet per ongeluk gewijzigd zijn. Zie
       `deploy/README.md`).
 - [ ] `/etc/hosts` op je MacBook, als Chrome/Safari de console niet laadt.
 
-## 8. Eindverificatie
+## 9. Eindverificatie
 
 ```bash
 oc get application -n argocd

@@ -15,14 +15,17 @@ de stappen uit al die repo's aan elkaar rijgt tot één playbook.
 ```
 docs/
   architecture.md                  — hoe alles in elkaar zit (hardware, netwerk, repo's, GitOps-flow)
+  access-and-credentials.md         — het admin- vs read-only-credential-model
   disaster-recovery-playbook.md     — DE playbook: cluster van scratch opnieuw opbouwen
   backup-and-restore.md             — wat je moet backuppen vóór je iets riskants doet, en hoe
   disk-4tb-to-12tb-migration.md     — procedure om de 4TB-schijf te vervangen door 12TB
+  smb-timemachine-test-procedure.md — hoe je de SMB/Time-Machine-share test
   manual-external-steps.md          — dingen die NIET in een script zitten (DNS, Cloudflare, router)
 
 manifests/
   machineconfigs/                   — de 2 node-level configs die nu alleen los op het cluster stonden
-  smb-timemachine/                  — Samba-share op de losse schijf voor Time Machine-backups
+  smb-timemachine/                  — Samba-share op de losse schijf voor Time Machine-backups (getest, werkend)
+  agent-access/                     — read-only ServiceAccount voor Claude Code/agents/assistent
 
 scripts/
   backup/                           — backup-all.sh + restore-sealed-secrets-key.sh

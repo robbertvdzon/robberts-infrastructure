@@ -1,0 +1,18 @@
+# Aanvulling op de ingebouwde 'view'-rol: read-only op resources die niet
+# (zeker) aggregeren naar 'view' — MachineConfig/MCP (niet aggregated by
+# default) en de ArgoCD-CRD's (afhankelijk van de operator, niet gegarandeerd).
+# Alleen get/list/watch — nooit create/update/patch/delete.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agent-extra-view
+rules:
+  - apiGroups: ["machineconfiguration.openshift.io"]
+    resources: ["machineconfigs", "machineconfigpools"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["config.openshift.io"]
+    resources: ["clusteroperators"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications", "applicationsets", "appprojects"]
+    verbs: ["get", "list", "watch"]

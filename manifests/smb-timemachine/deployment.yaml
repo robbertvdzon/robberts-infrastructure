@@ -22,6 +22,11 @@ metadata:
   namespace: smb-timemachine
 spec:
   replicas: 1
+  strategy:
+    # hostNetwork + vaste poorten (445/5353) kan geen 2 pods tegelijk hebben —
+    # RollingUpdate laat de oude pod tijdens de update nog even draaien, wat
+    # de nieuwe pod blokkeert ("didn't have free ports"). Recreate voorkomt dat.
+    type: Recreate
   selector:
     matchLabels:
       app: samba-timemachine
@@ -37,9 +42,28 @@ spec:
       # ergens anders geschedule wordt als de cluster ooit groeit.
       nodeSelector:
         kubernetes.io/hostname: sno.lab.vdzon.com
+      initContainers:
+        # Getest met een écht lege hostPath-subdir: kubelet maakt 'm root:root
+        # 0700 aan, en de samba-image fixt dat NIET zelf — zonder deze stap
+        # geeft mount_smbfs "Permission denied" voor de robbert-SMB-sessie
+        # (uid 1000). chown (niet alleen chmod) is nodig; 0700 is daarna
+        # voldoende zolang de eigenaar klopt.
+        - name: init-permissions
+          image: ghcr.io/servercontainers/samba:latest
+          command: ["sh", "-c", "mkdir -p /data/timemachine && chown 1000:1000 /data/timemachine && chmod 0700 /data/timemachine"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: data
+              mountPath: /data
       containers:
         - name: samba
-          image: ghcr.io/servercontainers/samba:smbd
+          image: ghcr.io/servercontainers/samba:latest
+          securityContext:
+            # avahi (mDNS-advertentie) heeft CAP_NET_RAW/NET_ADMIN nodig
+            # (cap_set_proc) — de privileged SCC laat de pod dit gebruiken,
+            # maar de container moet het zelf ook aanvragen.
+            privileged: true
           env:
             - name: SAMBA_CONF_LOG_LEVEL
               value: "2"
@@ -47,17 +71,19 @@ spec:
               value: "sno-timemachine"
             - name: WORKGROUP
               value: "WORKGROUP"
+            # LET OP: voor deze image IS de waarde van ACCOUNT_<naam> het
+            # wachtwoord — er bestaat geen aparte SAMBA_PASSWORD-var (die
+            # wordt stilzwijgend genegeerd, kostte tijdens het testen een
+            # "Authentication error" tot dit duidelijk werd).
             - name: ACCOUNT_robbert
-              value: "robbert"
-            - name: UID_robbert
-              value: "1000"
-            - name: GROUP_robbert
-              value: "users"
-            - name: SAMBA_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: samba-timemachine-credentials
                   key: SAMBA_PASSWORD
+            - name: UID_robbert
+              value: "1000"
+            - name: GROUP_robbert
+              value: "users"
             - name: SAMBA_VOLUME_CONFIG_timemachine
               value: "[TimeMachine]; path=/shares/timemachine; valid users = robbert; guest ok = no; read only = no; browseable = yes; fruit:time machine = yes; vfs objects = catia fruit streams_xattr; durable handles = yes; kernel oplocks = no; kernel share modes = no; posix locking = no"
             - name: AVAHI_NAME
