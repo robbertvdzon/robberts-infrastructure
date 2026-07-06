@@ -10,7 +10,8 @@ richting de cluster — het exporteert alleen, het wijzigt niets.
 |---|---|---|
 | Sealed-secrets private key(s) | `kube-system` secret met label `sealedsecrets.bitnami.com/sealed-secrets-key` | **Zonder deze key zijn alle SealedSecrets in git (dashboard-secrets, newsfeed-api-keys) na een reinstall permanent onleesbaar.** Er was tot nu toe geen backup van. |
 | Admin-kubeconfig + kubeadmin-password | `~/okd-sno/sno/auth/` | Toegang tot het huidige cluster (nutteloos na reinstall, wel nodig als de reinstall mislukt en je terug wil naar troubleshooten) |
-| install-config.yaml, pull-secret.txt | `~/okd-sno/` | Nodig om exact dezelfde cluster-config opnieuw te installeren |
+| pull-secret.txt | `~/okd-sno/`, en zet 'm ook in 1Password (zie [download-install-tools.md](download-install-tools.md)) | Red Hat-accountcredential, niet herdownloadbaar zonder terug naar je Red Hat-account te gaan |
+| install-config.yaml | `~/okd-sno/` | Ter referentie — wordt door `build-okd-sno.sh` toch weer vanaf nul gegenereerd, dus geen harde afhankelijkheid |
 | `build-okd-sno.sh` | zit al in **deze repo** (`scripts/install/build-okd-sno.sh`), dus geen losse backup meer nodig | ISO-buildscript met de IPv6/ignition-workarounds — zonder dit script moet je alle install-quirks uit `install-troubleshooting.md` met de hand reproduceren |
 | SSH private key | `~/.ssh/okd-sno` | Toegang tot de node zelf |
 | Live MachineConfigs (diff-check) | cluster, `50-local-storage-mount` + `99-master-strip-bad-search-domain` | Vangnet: als de live config ooit afwijkt van wat in `manifests/machineconfigs/` staat, zie je dat in de backup-diff |

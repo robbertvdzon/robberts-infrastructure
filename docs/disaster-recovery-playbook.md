@@ -20,9 +20,11 @@ in elkaar zitten.
 - [ ] `oc get application -n argocd` en `oc get pods -A` — noteer de huidige
       staat zodat je na de reinstall kan vergelijken.
 - [ ] Benodigdheden voor het ISO-bouwen aanwezig: `jq` (`brew install jq`),
-      Docker Desktop draaiend (voor de `coreos-installer`-container), en een
-      verse `scos-live.iso` van `rhcos.mirror.openshift.com` in
-      `~/okd-sno/scos-live.iso` als de huidige verouderd is.
+      Docker Desktop draaiend (voor de `coreos-installer`-container).
+      `openshift-install`/`oc`/`kubectl`/`scos-live.iso` niet (meer) in
+      `~/okd-sno/`? Zie [download-install-tools.md](download-install-tools.md)
+      voor de exacte download-commando's — en `pull-secret.txt` staat in
+      1Password (zie datzelfde document), niet alleen lokaal.
 
 ## 1. Cluster installeren
 

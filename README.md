@@ -19,6 +19,7 @@ docs/
   disaster-recovery-playbook.md     — DE playbook: cluster van scratch opnieuw opbouwen
   install-troubleshooting.md        — bekende install-valkuilen (6 pogingen/~18u ervaring), symptoom→fix
   backup-and-restore.md             — wat je moet backuppen vóór je iets riskants doet, en hoe
+  download-install-tools.md         — openshift-install/oc/ISO opnieuw downloaden + pull-secret in 1Password
   disk-4tb-to-12tb-migration.md     — procedure om de 4TB-schijf te vervangen door 12TB
   smb-timemachine-test-procedure.md — hoe je de SMB/Time-Machine-share test
   manual-external-steps.md          — dingen die NIET in een script zitten (DNS, Cloudflare, router)

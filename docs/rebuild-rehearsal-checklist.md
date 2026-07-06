@@ -45,6 +45,10 @@ doe het toch even (encrypted USB / 1Password) — kost een minuut.
 
 ## Fase 2 — USB-stick maken
 
+Ontbreken `openshift-install`/`oc`/`scos-live.iso`/`pull-secret.txt` in
+`~/okd-sno` (bv. omdat je die net hebt opgeruimd)? Zie
+[download-install-tools.md](download-install-tools.md) eerst.
+
 ```bash
 ~/git/robberts-infrastructure/scripts/install/build-okd-sno.sh
 ```

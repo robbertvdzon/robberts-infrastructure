@@ -73,7 +73,7 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
 
 | Wat | Waar |
 |---|---|
-| OpenShift-installer, ISO, pull-secret, install-config, admin-kubeconfig | `~/okd-sno/` (lokaal, niet in git) |
+| OpenShift-installer, ISO, pull-secret, install-config, admin-kubeconfig | `~/okd-sno/` (lokaal, niet in git). Installer/ISO herdownloaden: [download-install-tools.md](download-install-tools.md); pull-secret hoort ook in 1Password |
 | ISO-buildscript voor disaster recovery | [`scripts/install/build-okd-sno.sh`](../scripts/install/build-okd-sno.sh) in **deze repo** — `~/build-okd-sno.sh` is sinds 2026-07-07 alleen nog een dunne wrapper ernaartoe, geen aparte kopie meer |
 | App-bootstrap (ArgoCD, Sealed Secrets, storage, Reflector) | `personal-news-feed-by-claude-code/deploy/bootstrap.sh` |
 | App-manifesten + Applications | eigen repo per app (`deploy/`) |
