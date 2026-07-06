@@ -1,0 +1,33 @@
+# MachineConfig: post-bootstrap hostname-consistency (belt-and-suspenders
+# naast de ignition-fix, zie docs/install-troubleshooting.md Probleem 4).
+#
+# De ECHTE fix voor de bootstrap-fase zit in de ignition zelf (via
+# ~/build-okd-sno.sh) — zonder /etc/hostname al bij de EERSTE boot hangt
+# node-valid-hostname.service op "localhost.localdomain" en komt bootkube
+# nooit verder. MachineConfigs zijn pas actief NA bootkube, dus deze
+# MachineConfig lost het bootstrap-probleem niet op — hij zorgt alleen dat
+# de hostname ook na een MCO-reconcile/toekomstige reboot blijft staan.
+#
+# Dit bestand wordt automatisch door build-okd-sno.sh gegenereerd
+# (sno/openshift/99-master-hostname.yaml) — hier gecommit als vangnet voor
+# het geval dat script ooit verloren gaat.
+#
+# Apply met: oc apply -f 99-master-hostname.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-master-hostname
+  labels:
+    machineconfiguration.openshift.io/role: master
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /etc/hostname
+          mode: 0644
+          overwrite: true
+          contents:
+            # sno.lab.vdzon.com
+            source: data:text/plain;charset=utf-8;base64,c25vLmxhYi52ZHpvbi5jb20K

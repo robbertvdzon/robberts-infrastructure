@@ -4,6 +4,11 @@
 #   - 50-local-storage-mount: mount de databaseschijf op /var/mnt/localpv
 #   - 99-master-strip-bad-search-domain: DNS ndots/search-domain fix (zie
 #     ../../docs/architecture.md voor de root cause)
+#   - 99-master-disable-ipv6 / 99-master-hostname: post-bootstrap vangnet
+#     voor de fixes die primair in de ignition zitten (build-okd-sno.sh) —
+#     zie ../../docs/install-troubleshooting.md Probleem 3 en 4. Op een
+#     vers cluster (net geïnstalleerd met build-okd-sno.sh) bestaan deze al
+#     vanaf de eerste boot; dit script is dan een no-op (identieke content).
 #
 # Idempotent. Elke wijziging laat de Machine Config Operator een nieuwe
 # rendered-config bouwen en de node rebooten (bij een SNO-cluster = korte

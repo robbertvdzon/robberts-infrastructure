@@ -56,10 +56,13 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
   wordt gebootstrapt door `personal-news-feed-by-claude-code/deploy/bootstrap.sh` — dat script
   installeert ook Sealed Secrets, local-path-provisioner en Reflector.
 - Geen app-of-apps-patroon: elke app heeft een eigen `Application`-resource die **los**
-  `oc apply`'d wordt (geen root-Application die ze allemaal aanmaakt). Drie apps:
+  `oc apply`'d wordt (geen root-Application die ze allemaal aanmaakt). Vier apps:
   - `personal-news-feed` (uit `personal-news-feed-by-claude-code` repo)
   - `youtrack` (uit `software-factory` repo, `deploy/youtrack`)
   - `softwarefactory-dashboard` (uit `software-factory` repo, `deploy/base`)
+  - `smb-timemachine` (uit **deze** repo, `manifests/smb-timemachine`) — de enige
+    app die vanuit `robberts-infrastructure` zelf gesynct wordt in plaats van
+    vanuit een app-repo
 - **Sealed Secrets**: elke app committed een `SealedSecret` in git, versleuteld met het
   publieke cert van de sealed-secrets-controller. De **private key** leeft alleen in-cluster
   (`kube-system`, secret met label `sealedsecrets.bitnami.com/sealed-secrets-key`) — die

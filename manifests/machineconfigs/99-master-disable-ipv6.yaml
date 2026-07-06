@@ -1,0 +1,40 @@
+# MachineConfig: post-bootstrap IPv6-disable (belt-and-suspenders naast de
+# ignition-fix, zie docs/install-troubleshooting.md Probleem 3).
+#
+# De ECHTE fix voor de bootstrap-fase zit in de ignition zelf (via
+# ~/build-okd-sno.sh — NetworkManager keyfile + deze zelfde sysctl-inhoud,
+# want MachineConfigs zijn pas actief NA bootkube). Deze MachineConfig zorgt
+# dat de instelling ook na een MCO-reconcile/toekomstige reboot blijft staan.
+#
+# Dit bestand wordt automatisch door build-okd-sno.sh gegenereerd
+# (sno/openshift/99-master-disable-ipv6.yaml) — hier gecommit als vangnet
+# voor het geval dat script ooit verloren gaat, en om alle node-level config
+# op één plek te hebben (zie manifests/machineconfigs/README of
+# docs/architecture.md).
+#
+# Apply met: oc apply -f 99-master-disable-ipv6.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-master-disable-ipv6
+  labels:
+    machineconfiguration.openshift.io/role: master
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /etc/sysctl.d/95-disable-ipv6.conf
+          mode: 0644
+          overwrite: true
+          contents:
+            # net.ipv6.conf.all.disable_ipv6=1
+            # net.ipv6.conf.default.disable_ipv6=1
+            source: data:text/plain;charset=utf-8;base64,bmV0LmlwdjYuY29uZi5hbGwuZGlzYWJsZV9pcHY2PTEKbmV0LmlwdjYuY29uZi5kZWZhdWx0LmRpc2FibGVfaXB2Nj0xCgo=
+        - path: /etc/NetworkManager/dispatcher.d/95-disable-ipv6
+          mode: 0755
+          overwrite: true
+          contents:
+            # #!/bin/bash — zet sysctl disable_ipv6 op elke interface-up
+            source: data:text/plain;charset=utf-8;base64,IyEvYmluL2Jhc2gKIyBEaXNhYmxlIElQdjYgb24gYWxsIGludGVyZmFjZXMgd2hlbiB0aGV5IGNvbWUgdXAKSU5URVJGQUNFPSIkMSIKQUNUSU9OPSIkMiIKCmlmIFsgIiRBQ1RJT04iID0gInVwIiBdIHx8IFsgIiRBQ1RJT04iID0gInByZS11cCIgXTsgdGhlbgogIHN5c2N0bCAtdyBuZXQuaXB2Ni5jb25mLmFsbC5kaXNhYmxlX2lwdjY9MSA+IC9kZXYvbnVsbAogIHN5c2N0bCAtdyBuZXQuaXB2Ni5jb25mLmRlZmF1bHQuZGlzYWJsZV9pcHY2PTEgPiAvZGV2L251bGwKICBzeXNjdGwgLXcgbmV0LmlwdjYuY29uZi4iJElOVEVSRkFDRSIuZGlzYWJsZV9pcHY2PTEgPiAvZGV2L251bGwKZmkKCg==

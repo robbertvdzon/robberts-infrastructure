@@ -45,19 +45,22 @@ voor hoe je dat verifieert en hoe je dit zelf opnieuw kan testen.
    failed: Operation not permitted` en werkt Bonjour-discovery niet.
 5. Permissie-fix hierboven (initContainer).
 
-## Installeren
+## Installeren — via ArgoCD (4e Application)
+
+Alles hier (namespace, ServiceAccount, RoleBinding voor de privileged-SCC,
+SealedSecret, Deployment) staat nu in git en wordt door ArgoCD gesynct —
+**niet** meer los `oc apply -k`'d. De enige stap die nog met het admin-
+account moet (ArgoCD kan zichzelf geen Application geven):
 
 ```bash
-oc apply -k manifests/smb-timemachine/
-oc adm policy add-scc-to-user privileged -z samba-timemachine -n smb-timemachine
-
-# Credentials (niet in git als plaintext)
-cp manifests/smb-timemachine/secret-smb-credentials.example.yaml \
-   manifests/smb-timemachine/secret-smb-credentials.yaml
-# bewerk secret-smb-credentials.yaml, vul een echt wachtwoord in
-oc apply -f manifests/smb-timemachine/secret-smb-credentials.yaml
-oc rollout restart deployment/samba-timemachine -n smb-timemachine
+export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig   # break-glass admin, zie
+                                                    # ../../docs/access-and-credentials.md
+oc apply -f manifests/smb-timemachine/argocd-application.yaml
 ```
+
+Daarna volledig autonoom (self-heal aan, prune aan). Wachtwoord wijzigen: zie
+[ROTATE-PASSWORD.md](ROTATE-PASSWORD.md) — ook dat gaat via git + ArgoCD, niet
+via een losse `oc create secret`.
 
 Testen: zie [../../docs/smb-timemachine-test-procedure.md](../../docs/smb-timemachine-test-procedure.md).
 
@@ -66,5 +69,3 @@ Testen: zie [../../docs/smb-timemachine-test-procedure.md](../../docs/smb-timema
 - `nodeSelector: kubernetes.io/hostname: sno.lab.vdzon.com` is hardcoded —
   klopt zolang dit een SNO-cluster blijft.
 - Geen backup van de Time-Machine-data zelf (dit IS de backup-bestemming).
-- Nog niet gewired in ArgoCD — wordt los `oc apply -k`'d, niet automatisch
-  gesynct. Kan later als 4e Application toegevoegd worden als dat gewenst is.

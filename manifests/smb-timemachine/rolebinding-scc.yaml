@@ -1,0 +1,16 @@
+# Declaratieve versie van `oc adm policy add-scc-to-user privileged -z
+# samba-timemachine -n smb-timemachine` (die ik eerder los via de CLI had
+# gedaan — hoort ook via ArgoCD te gaan, dus nu als manifest).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: system:openshift:scc:privileged
+  namespace: smb-timemachine
+subjects:
+  - kind: ServiceAccount
+    name: samba-timemachine
+    namespace: smb-timemachine
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:privileged

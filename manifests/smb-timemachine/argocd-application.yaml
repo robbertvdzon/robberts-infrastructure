@@ -1,0 +1,35 @@
+# ArgoCD Application voor de SMB/Time-Machine-share.
+#
+# Eenmalig ge-apply'd op het cluster (admin-account nodig — ArgoCD kan
+# zichzelf geen nieuwe Application geven), daarna autonoom beheerd door
+# ArgoCD (self-heal aan, prune aan — de share-data zelf staat op
+# /var/mnt/localpv op de node, niet in een k8s-object, dus prune van de
+# k8s-resources is hier veilig).
+#
+# oc apply -f manifests/smb-timemachine/argocd-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smb-timemachine
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/robberts-infrastructure.git
+    targetRevision: main
+    path: manifests/smb-timemachine
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: smb-timemachine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

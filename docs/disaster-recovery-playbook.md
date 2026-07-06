@@ -19,34 +19,65 @@ in elkaar zitten.
       je alleen `/dev/sda` (de OS-schijf) opnieuw installeert.
 - [ ] `oc get application -n argocd` en `oc get pods -A` — noteer de huidige
       staat zodat je na de reinstall kan vergelijken.
+- [ ] Benodigdheden voor het ISO-bouwen aanwezig: `jq` (`brew install jq`),
+      Docker Desktop draaiend (voor de `coreos-installer`-container), en een
+      verse `scos-live.iso` van `rhcos.mirror.openshift.com` in
+      `~/okd-sno/scos-live.iso` als de huidige verouderd is.
 
 ## 1. Cluster installeren
 
+Dit is de fase met de meeste bekende valkuilen — 6 pogingen en ~18 uur bij de
+originele install. Zie [install-troubleshooting.md](install-troubleshooting.md)
+voor de volledige symptoom→oorzaak→fix-tabel als iets onderweg misgaat; hier
+alleen de happy path.
+
 Volg `~/build-okd-sno.sh` (uit de backup, zie stap 0) — dat script bakt de
-ignition met de drie install-quirks die tijdens de originele install zijn
-gevonden (zie `~/okd-sno/handoff.md` in de backup voor de volledige uitleg
-waarom):
+ignition met de install-quirks die tijdens de originele install zijn
+gevonden:
 
 1. **Static ethernet + IPv6 disabled in de ignition zelf** (niet als
    MachineConfig — die werken pas ná bootstrap, te laat voor de Ziggo
-   IPv6-SLAAC-problemen).
+   IPv6-SLAAC-problemen, zie install-troubleshooting.md Probleem 3).
 2. **Geen kernel-arg `ipv6.disable=1`** — dat breekt OVN (probeert
    `sysctl -w net.ipv6.conf.all.forwarding=0` te zetten op een path dat niet
    bestaat zonder de kernel-module).
 3. **Hostname in de ignition** (`sno.lab.vdzon.com`) — anders hangt
-   `node-valid-hostname.service` op bootkube.
+   `node-valid-hostname.service` op bootkube (Probleem 4).
 
-Als `/dev/sda` nog data van een vorige install heeft:
+Na het booten van `scos-live.iso`:
 ```bash
-ssh core@<node-ip>
+ssh-keygen -R 192.168.178.64   # oude host-key weg als dit een herinstall is
+ssh -i ~/.ssh/okd-sno core@192.168.178.64
+```
+Verifieer dat de ignition-fixes echt actief zijn vóórdat je verder gaat:
+```bash
+hostname            # moet sno.lab.vdzon.com zijn, NIET localhost.localdomain
+ip -6 addr show      # moet leeg zijn voor de ethernet-interface (geen IPv6)
+```
+
+Als `/dev/sda` nog data van een vorige install heeft (LVM van een oude
+Ubuntu-install blokkeert anders `install-to-disk`, zie
+install-troubleshooting.md Probleem 2 — de `vgchange`-stap is essentieel en
+ontbrak lang in dit playbook):
+```bash
+sudo vgs                          # zoek de VG-naam, bv. "ubuntu-vg"
+sudo vgchange -an <vg-naam>
 sudo dmsetup remove_all 2>/dev/null
 sudo wipefs -a /dev/sda
 ```
 
-Boot de node van `scos-live.iso`, wacht tot bootstrap-in-place klaar is
-(`~10-20 min`), en verifieer:
+`install-to-disk.service` pakt de wipe binnen enkele seconden op (retry-loop).
+Wacht op het auto-reboot-bericht en haal **direct** de USB-stick eruit
+(anders boot 'ie weer van USB in plaats van de SSD).
+
+Volg de installatie vanaf de MacBook:
 ```bash
 export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig
+./openshift-install --dir=sno wait-for install-complete --log-level=info
+```
+`connection refused`-meldingen in de eerste 10-15 min zijn normaal. Na
+"Install complete!":
+```bash
 oc get nodes
 oc get co   # alle operators Available=True, Degraded=False
 ```
@@ -129,9 +160,14 @@ voor al het niet-menselijke `oc`-gebruik, **niet** het admin-kubeconfig.
 
 ## 7. SMB / Time Machine share
 
-Zie [../manifests/smb-timemachine/README.md](../manifests/smb-timemachine/README.md)
-voor de volledige installatie (SCC-grant + credentials-secret zijn losse
-stappen, niet onderdeel van de kustomization).
+Vierde ArgoCD Application, vanuit deze repo zelf (niet vanuit een app-repo):
+
+```bash
+oc apply -f manifests/smb-timemachine/argocd-application.yaml
+```
+
+Verder volledig via git/ArgoCD — zie
+[../manifests/smb-timemachine/README.md](../manifests/smb-timemachine/README.md).
 
 ## 8. Externe, niet-gescripte stukken
 
