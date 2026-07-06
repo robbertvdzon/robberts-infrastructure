@@ -36,7 +36,9 @@ scripts/
 
 ## Snel starten
 
-- **Cluster opnieuw opbouwen?** Begin bij [docs/disaster-recovery-playbook.md](docs/disaster-recovery-playbook.md).
+- **Reinstall-rehearsal op een tijdelijke schijf (same-day test)?** Eén korte
+  checklist: [docs/rebuild-rehearsal-checklist.md](docs/rebuild-rehearsal-checklist.md).
+- **Cluster opnieuw opbouwen (volledig, met alle uitleg)?** Begin bij [docs/disaster-recovery-playbook.md](docs/disaster-recovery-playbook.md).
 - **Eerst backuppen?** Altijd — zie [docs/backup-and-restore.md](docs/backup-and-restore.md), en run
   `./scripts/backup/backup-all.sh` vóórdat je wat dan ook riskants doet.
 - **Schijf vervangen?** Zie [docs/disk-4tb-to-12tb-migration.md](docs/disk-4tb-to-12tb-migration.md).
