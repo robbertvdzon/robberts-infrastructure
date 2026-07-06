@@ -78,3 +78,14 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
 | App-bootstrap (ArgoCD, Sealed Secrets, storage, Reflector) | `personal-news-feed-by-claude-code/deploy/bootstrap.sh` |
 | App-manifesten + Applications | eigen repo per app (`deploy/`) |
 | Node-level MachineConfigs, backup-scripts, playbooks | **deze repo** |
+
+**Waarom `~/okd-sno/` niet gewoon een submap van deze repo is (met `.gitignore`
+voor het gegenereerde spul, zoals `secrets.env` in de andere repo's):** deze
+repo, `personal-news-feed-by-claude-code` en `software-factory` staan alle
+drie op **PUBLIC** GitHub. Bij die andere repo's is een `.gitignore`-misser
+vervelend (een app-token lekt, roteer je). `~/okd-sno` bevat `pull-secret.txt`
+(Red Hat-account) en `sno/auth/kubeconfig`/`kubeadmin-password`
+(cluster-admin) — een misser daar zet cluster-admin permanent publiek, tot
+je de git-historie herschrijft én alle credentials roteert. Fysieke scheiding
+is een harde grens die niet van een correcte regel afhangt; bewust zo
+gehouden (besproken en herbevestigd op 2026-07-07).
