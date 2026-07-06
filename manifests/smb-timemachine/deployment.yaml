@@ -1,0 +1,88 @@
+# Samba-share op /var/mnt/localpv/timemachine, voor macOS Time Machine-backups.
+#
+# Image: ghcr.io/servercontainers/samba — heeft native Time-Machine-support
+# (fruit:time machine, avahi/mDNS-advertentie) via env-vars, geen handgeschreven
+# smb.conf nodig.
+#
+# hostNetwork: true is bewust — Time Machine vindt de share via Bonjour/mDNS
+# (multicast), dat werkt niet betrouwbaar door de pod-overlay-network heen.
+# Met hostNetwork draait de share direct op het IP van de node
+# (192.168.178.64), bereikbaar voor elk toestel op het thuisnetwerk.
+#
+# hostPath vereist een SCC die dat toestaat — zie de oc adm-command in
+# ../../docs/architecture.md of run:
+#   oc adm policy add-scc-to-user privileged -z samba-timemachine -n smb-timemachine
+#
+# Dit is een eerste opzet — nog niet getest op een echte Time Machine-backup.
+# Verifieer na deploy met een macOS-client voordat je erop vertrouwt.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: samba-timemachine
+  namespace: smb-timemachine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: samba-timemachine
+  template:
+    metadata:
+      labels:
+        app: samba-timemachine
+    spec:
+      serviceAccountName: samba-timemachine
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      # Eén node in dit cluster, maar expliciet zodat dit niet per ongeluk
+      # ergens anders geschedule wordt als de cluster ooit groeit.
+      nodeSelector:
+        kubernetes.io/hostname: sno.lab.vdzon.com
+      containers:
+        - name: samba
+          image: ghcr.io/servercontainers/samba:smbd
+          env:
+            - name: SAMBA_CONF_LOG_LEVEL
+              value: "2"
+            - name: SAMBA_CONF_SERVER_STRING
+              value: "sno-timemachine"
+            - name: WORKGROUP
+              value: "WORKGROUP"
+            - name: ACCOUNT_robbert
+              value: "robbert"
+            - name: UID_robbert
+              value: "1000"
+            - name: GROUP_robbert
+              value: "users"
+            - name: SAMBA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: samba-timemachine-credentials
+                  key: SAMBA_PASSWORD
+            - name: SAMBA_VOLUME_CONFIG_timemachine
+              value: "[TimeMachine]; path=/shares/timemachine; valid users = robbert; guest ok = no; read only = no; browseable = yes; fruit:time machine = yes; vfs objects = catia fruit streams_xattr; durable handles = yes; kernel oplocks = no; kernel share modes = no; posix locking = no"
+            - name: AVAHI_NAME
+              value: "sno-timemachine"
+            - name: MODEL
+              value: "TimeCapsule8,119"
+          ports:
+            - containerPort: 445
+              name: smb
+            - containerPort: 5353
+              protocol: UDP
+              name: mdns
+          volumeMounts:
+            - name: data
+              mountPath: /shares/timemachine
+              subPath: timemachine
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/mnt/localpv
+            type: Directory

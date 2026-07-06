@@ -1,0 +1,36 @@
+# MachineConfig: strip lab.vdzon.com uit /etc/resolv.conf via een NetworkManager
+# dispatcher-script.
+#
+# Root cause: one.com heeft een catchall A-record voor *.vdzon.com (46.30.213.97).
+# Gecombineerd met de door Ziggo-DHCP gepushte search-domain "lab.vdzon.com" op de
+# node en de default ndots:5 in pod-resolv.conf, worden lookups voor
+# *.svc.cluster.local uitgebreid naar *.cluster.local.lab.vdzon.com en door
+# upstream DNS omgezet naar het catchall-IP — dat breekt ALLE in-cluster
+# service-DNS (console laadt 60s+, plugin-manifests timeouten).
+#
+# Zonder deze fix na een reinstall: exact hetzelfde probleem als bij de
+# originele install (zie ~/okd-sno/handoff.md).
+#
+# Permanente alternatieve fix (niet gedaan): specifiekere DNS-records bij
+# one.com i.p.v. de wildcard, of eigen authoritative DNS voor lab.vdzon.com.
+#
+# Apply met: oc apply -f 99-master-strip-bad-search-domain.yaml
+# MCO bouwt de rendered config opnieuw en triggert een reboot van de node.
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-master-strip-bad-search-domain
+  labels:
+    machineconfiguration.openshift.io/role: master
+spec:
+  config:
+    ignition:
+      version: 3.4.0
+    storage:
+      files:
+      - path: /etc/NetworkManager/dispatcher.d/30-strip-bad-search-domain
+        mode: 0755
+        overwrite: true
+        contents:
+          # Base64-inhoud staat leesbaar in ../../scripts/machineconfig/30-strip-bad-search-domain.sh
+          source: data:text/plain;base64,IyEvYmluL2Jhc2gKIyBOZXR3b3JrTWFuYWdlciBkaXNwYXRjaGVyIHNjcmlwdC4KIyBTdHJpcCBsYWIudmR6b24uY29tIGZyb20gL2V0Yy9yZXNvbHYuY29uZiBzZWFyY2ggbGluZS4KIyBXaHk6IHVwc3RyZWFtIEROUyBmb3IgdmR6b24uY29tIHJldHVybnMgYSBjYXRjaGFsbCBBIHJlY29yZAojICg0Ni4zMC4yMTMuOTcgLyBvbmUuY29tIGhvc3RpbmcpIGluc3RlYWQgb2YgTlhET01BSU4sIHdoaWNoCiMgYnJlYWtzIHBvZCBuZG90czo1IGxvb2t1cHMgZm9yICouY2x1c3Rlci5sb2NhbCBzZXJ2aWNlcy4KRVZFTlQ9IiQyIgpjYXNlICIkRVZFTlQiIGluCiAgdXB8ZGhjcDQtY2hhbmdlfGRoY3A2LWNoYW5nZXxyZWFwcGx5KQogICAgaWYgZ3JlcCAtcUUgJyhefCApbGFiXC52ZHpvblwuY29tKCB8JCknIC9ldGMvcmVzb2x2LmNvbmYgMj4vZGV2L251bGw7IHRoZW4KICAgICAgc2VkIC1pIC1FICcKICAgICAgICBzLyhefFtbOnNwYWNlOl1dKWxhYlwudmR6b25cLmNvbShbWzpzcGFjZTpdXXwkKS9cMVwyL2cKICAgICAgICBzL1tbOnNwYWNlOl1dKy8gL2cKICAgICAgICBzL15bWzpzcGFjZTpdXSsvLwogICAgICAgIHMvW1s6c3BhY2U6XV0rJC8vCiAgICAgICAgL15zZWFyY2hbWzpzcGFjZTpdXSokL2QKICAgICAgJyAvZXRjL3Jlc29sdi5jb25mCiAgICBmaQogICAgOzsKZXNhYwo=

@@ -1,0 +1,11 @@
+# Backups bevatten private keys / kubeconfig / plaintext secrets — nooit committen.
+backups/
+*.backup
+*-kubeconfig
+kubeadmin-password
+pull-secret.txt
+sealed-secrets-key*.yaml
+
+# Lokale scratch
+.DS_Store
+.idea/

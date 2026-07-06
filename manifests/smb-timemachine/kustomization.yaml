@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - deployment.yaml
+# secret-smb-credentials.yaml expres NIET hier: kopieer eerst
+# secret-smb-credentials.example.yaml, vul een wachtwoord in, en apply los
+# (of seal 'm, zie het .example-bestand).
