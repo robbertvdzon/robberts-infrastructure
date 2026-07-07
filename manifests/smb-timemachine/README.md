@@ -1,16 +1,38 @@
 # SMB / Time Machine share
 
-Deelt een map op de databaseschijf (`/var/mnt/localpv/timemachine`) uit als
-Samba-share met Time-Machine-ondersteuning, zodat MacBooks op het
-thuisnetwerk erop kunnen backuppen.
+Deelt een map uit als Samba-share met Time-Machine-ondersteuning, zodat
+MacBooks op het thuisnetwerk erop kunnen backuppen.
 
-**Status: getest en werkend (2026-07-06).** Geverifieerd vanaf een macOS-client:
+**Status: getest en werkend (2026-07-06)** op de interne databaseschijf
+(`/var/mnt/localpv/timemachine`). Geverifieerd vanaf een macOS-client:
 SMB-auth, mounten, schrijven/lezen, en Bonjour/mDNS-advertentie
 (`_adisk._tcp` — de service waarmee Time Machine netwerkschijven ontdekt).
 Nog **niet** getest: een volledige, langlopende Time Machine-backup (alleen
 handmatige bestandsoperaties via `mount_smbfs`). Zie
 [../../docs/smb-timemachine-test-procedure.md](../../docs/smb-timemachine-test-procedure.md)
 voor hoe je dat verifieert en hoe je dit zelf opnieuw kan testen.
+
+**Test (2026-07-07): externe USB-HDD (exFAT) i.p.v. de interne schijf** —
+zelfde CLI-testprocedure herhaald tegen een externe "Verbatim Desktop HDD 3.0"
+(3.7TB, exFAT), aangesloten op de OpenShift-node. Doel: verifiëren dat een
+externe schijf een bruikbaar alternatief is voor het disaster-recovery-
+scenario (schijf loskoppelen, direct op een Mac aansluiten als de OpenShift-
+machine kapot is). **Geslaagd** — zelfde resultaten als hierboven (mount,
+schrijven/lezen, Bonjour-advertentie), plus geverifieerd dat de data
+daadwerkelijk op de exFAT-partitie landt (`df` binnen de pod toont `/dev/sdc2`,
+niet de OS-schijf).
+
+Twee dingen zijn voor deze test bewust anders dan de vaste opzet:
+- `SAMBA_VOLUME_CONFIG_timemachine` gebruikt `fruit:metadata = netatalk` +
+  `fruit:resource = file` i.p.v. `streams_xattr` — exFAT ondersteunt geen
+  xattrs, `streams_xattr` heeft die nodig.
+- De mount zelf staat **nog niet** in een MachineConfig
+  (`../machineconfigs/51-external-hdd-mount.yaml` staat klaar maar is bewust
+  nog niet toegepast — dat triggert een node-reboot). Tot die is toegepast is
+  de mount handmatig gezet via `nsenter -a -t 1` op de node en **overleeft
+  geen reboot**. Na een reboot moet je 'm opnieuw handmatig mounten, of eerst
+  `oc apply -f ../machineconfigs/51-external-hdd-mount.yaml` draaien
+  (met een reboot als consequentie).
 
 ## Waarom deze keuzes
 
