@@ -95,6 +95,12 @@ spec:
               value: "users"
             - name: SAMBA_VOLUME_CONFIG_timemachine
               value: "[TimeMachine]; path=/shares/timemachine; valid users = robbert; guest ok = no; read only = no; browseable = yes; fruit:time machine = yes; vfs objects = catia fruit; fruit:metadata = netatalk; fruit:resource = file; durable handles = yes; kernel oplocks = no; kernel share modes = no; posix locking = no"
+            # TEST: aparte share op de root van de externe HDD (niet alleen de
+            # timemachine-subfolder) — zodat de al-bestaande data die al op
+            # deze schijf stond (bv. "folder van robbert") ook bereikbaar is,
+            # los van de Time Machine-share.
+            - name: SAMBA_VOLUME_CONFIG_external
+              value: "[ExternalHDD]; path=/shares/external; valid users = robbert; guest ok = no; read only = no; browseable = yes; vfs objects = catia fruit; fruit:metadata = netatalk"
             - name: AVAHI_NAME
               value: "sno-timemachine"
             - name: MODEL
@@ -109,6 +115,8 @@ spec:
             - name: data
               mountPath: /shares/timemachine
               subPath: timemachine
+            - name: data
+              mountPath: /shares/external
           resources:
             requests:
               cpu: 50m
