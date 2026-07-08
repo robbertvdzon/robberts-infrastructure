@@ -22,6 +22,7 @@ docs/
   architecture.md                  — hoe alles in elkaar zit (hardware, netwerk, repo's, GitOps-flow)
   access-and-credentials.md         — het admin- vs read-only-credential-model
   disaster-recovery-playbook.md     — DE playbook: cluster van scratch opnieuw opbouwen
+  cluster-inventory.md              — wat staat er nu op de cluster, is het nodig, is het reinstall-proof
   install-troubleshooting.md        — bekende install-valkuilen (6 pogingen/~18u ervaring), symptoom→fix
   backup-and-restore.md             — wat je moet backuppen vóór je iets riskants doet, en hoe
   download-install-tools.md         — openshift-install/oc/ISO opnieuw downloaden + pull-secret in 1Password
