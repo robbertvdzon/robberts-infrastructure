@@ -69,29 +69,10 @@ diskutil eject /dev/disk4
 
 ## Fase 3 — Installeren
 
-USB in de PC, aanzetten, boot van USB. Wacht op het login-prompt en
-controleer op het scherm: hostname moet `sno.lab.vdzon.com` zijn (bewijs dat
-de ignition-fixes actief zijn, niet `localhost.localdomain`).
-
-```bash
-ssh-keygen -R 192.168.178.64
-ssh -i ~/.ssh/okd-sno core@192.168.178.64
-```
-
-Op de tijdelijke HDD staat vrijwel zeker geen oude LVM, dus normaal gesproken
-volstaat:
-```bash
-sudo wipefs -a /dev/sda
-```
-(Alleen als dat een foutmelding geeft over "busy partitions": eerst
-`sudo vgs` om een volume-group-naam te vinden, dan
-`sudo vgchange -an <naam>` en daarna opnieuw `wipefs`. Zie
-[install-troubleshooting.md](install-troubleshooting.md) Probleem 2.)
-
-`install-to-disk.service` pakt dit binnen enkele seconden op. Wacht op de
-auto-reboot-melding en haal **direct** de USB-stick eruit.
-
-Vanaf je MacBook meekijken:
+USB in de PC, aanzetten, boot van USB — daarna niets te doen.
+`install-to-disk.service` zit ingebakken in de ignition en wipet+installeert
+de schijf helemaal zelf. Vanaf je MacBook meekijken (kan al meteen na het
+booten, dit commando wacht zelf tot de API bereikbaar is):
 ```bash
 export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig
 ./openshift-install --dir=sno wait-for install-complete --log-level=info
@@ -102,6 +83,14 @@ export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig
 oc get nodes
 oc get co
 ```
+
+**Alleen als de auto-install vastloopt** (zeldzaam op een tijdelijke schijf
+zonder oude LVM): ssh naar de node
+(`ssh-keygen -R 192.168.178.64 && ssh -i ~/.ssh/okd-sno core@192.168.178.64`),
+dan `sudo wipefs -a /dev/sda` (bij een "busy partitions"-fout eerst
+`sudo vgs` → `sudo vgchange -an <naam>` → opnieuw `wipefs`, zie
+[install-troubleshooting.md](install-troubleshooting.md) Probleem 2).
+`install-to-disk.service` pakt de wipe daarna binnen enkele seconden op.
 
 ## Fase 4 — Node-config, ArgoCD, apps
 

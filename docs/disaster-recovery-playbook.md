@@ -47,33 +47,14 @@ met de install-quirks die tijdens de originele install zijn gevonden:
 3. **Hostname in de ignition** (`sno.lab.vdzon.com`) — anders hangt
    `node-valid-hostname.service` op bootkube (Probleem 4).
 
-Na het booten van `scos-live.iso`:
-```bash
-ssh-keygen -R 192.168.178.64   # oude host-key weg als dit een herinstall is
-ssh -i ~/.ssh/okd-sno core@192.168.178.64
-```
-Verifieer dat de ignition-fixes echt actief zijn vóórdat je verder gaat:
-```bash
-hostname            # moet sno.lab.vdzon.com zijn, NIET localhost.localdomain
-ip -6 addr show      # moet leeg zijn voor de ethernet-interface (geen IPv6)
-```
+Boot van `scos-live.iso` — daarna niets te doen: `install-to-disk.service`
+zit ingebakken in de ignition (via `openshift-install create
+single-node-ignition-config`, in het build-script) en wipet+installeert de
+schijf helemaal zelf, zonder handmatige tussenkomst. Gewoon wachten tot 'ie
+vanzelf reboot naar de geïnstalleerde SSD.
 
-Als `/dev/sda` nog data van een vorige install heeft (LVM van een oude
-Ubuntu-install blokkeert anders `install-to-disk`, zie
-install-troubleshooting.md Probleem 2 — de `vgchange`-stap is essentieel en
-ontbrak lang in dit playbook):
-```bash
-sudo vgs                          # zoek de VG-naam, bv. "ubuntu-vg"
-sudo vgchange -an <vg-naam>
-sudo dmsetup remove_all 2>/dev/null
-sudo wipefs -a /dev/sda
-```
-
-`install-to-disk.service` pakt de wipe binnen enkele seconden op (retry-loop).
-Wacht op het auto-reboot-bericht en haal **direct** de USB-stick eruit
-(anders boot 'ie weer van USB in plaats van de SSD).
-
-Volg de installatie vanaf de MacBook:
+Volg de installatie vanaf de MacBook (kan je meteen na het opstarten van de
+USB al draaien — dit commando wacht zelf tot de API bereikbaar is):
 ```bash
 export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig
 ./openshift-install --dir=sno wait-for install-complete --log-level=info
@@ -84,6 +65,37 @@ export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig
 oc get nodes
 oc get co   # alle operators Available=True, Degraded=False
 ```
+
+<details>
+<summary>Troubleshooting-fallback: alleen nodig als de auto-install vastloopt</summary>
+
+Als de node na ~15 min nog niet vanzelf reboot naar de SSD (kan gebeuren als
+`/dev/sda` nog LVM van een oude, andere OS-install heeft — bv. Ubuntu — die
+`install-to-disk` blokkeert met "found busy partitions", zie
+install-troubleshooting.md Probleem 2):
+
+```bash
+ssh-keygen -R 192.168.178.64   # oude host-key weg als dit een herinstall is
+ssh -i ~/.ssh/okd-sno core@192.168.178.64
+```
+Verifieer dat de ignition-fixes actief zijn:
+```bash
+hostname            # moet sno.lab.vdzon.com zijn, NIET localhost.localdomain
+ip -6 addr show      # moet leeg zijn voor de ethernet-interface (geen IPv6)
+```
+Dan de schijf handmatig vrijmaken (de `vgchange`-stap is essentieel, anders
+krijgt `dmsetup` de volume group niet los):
+```bash
+sudo vgs                          # zoek de VG-naam, bv. "ubuntu-vg"
+sudo vgchange -an <vg-naam>
+sudo dmsetup remove_all 2>/dev/null
+sudo wipefs -a /dev/sda
+```
+`install-to-disk.service` pakt de wipe daarna binnen enkele seconden op
+(retry-loop). Wacht op het auto-reboot-bericht en haal **direct** de
+USB-stick eruit (anders boot 'ie weer van USB i.p.v. de SSD).
+
+</details>
 
 **Verwacht**: de externe USB-HDD (Time Machine-bestemming) is nog fysiek aangesloten maar
 NIET gemount — dat gebeurt in de volgende stap. **Sluit de schijf aan vóórdat je dit script
