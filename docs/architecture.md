@@ -5,8 +5,13 @@
 - ASUS PRIME H410M-K, Intel/AMD64
 - 32GB RAM
 - `/dev/sda` — 240GB SATA SSD, OS-schijf (RHCOS/SCOS)
-- `/dev/sdb` — 4TB SATA-schijf, gemount op `/var/mnt/localpv` (wordt op termijn 12TB, zie
-  [disk-4tb-to-12tb-migration.md](disk-4tb-to-12tb-migration.md))
+- Externe USB-HDD ("Verbatim Desktop HDD 3.0", 3.7TB, exFAT), gemount op
+  `/var/mnt/external-hdd` — de Time Machine-bestemming (zie
+  [../manifests/smb-timemachine/README.md](../manifests/smb-timemachine/README.md)). Sinds
+  2026-07-08 de definitieve opzet; vervangt de interne 4TB-schijf (`/dev/sdb`, was gemount op
+  `/var/mnt/localpv`) — die schijf is niet meer nodig en de MachineConfig ervoor
+  (`50-local-storage-mount`) is verwijderd. Bewuste keuze voor extern/exFAT: bij een kapotte
+  OpenShift-machine kan de schijf losgekoppeld en direct op een Mac aangesloten worden.
 - 1Gbps bedraad ethernet, vast IP `192.168.178.64` via DHCP-reservation op de Ziggo router (MAC `24:4B:FE:82:0D:4D`)
 
 ## Cluster
@@ -15,7 +20,8 @@
 - Cluster-naam `sno`, base domain `lab.vdzon.com`
 - OVN-Kubernetes, IPv4-only (IPv6 bewust uitgezet — zie install-quirks hieronder)
 - Enige StorageClass: `local-path` (rancher.io/local-path), path `/var/lib/local-path-provisioner`
-  op de **kleine SSD** — de 4TB-schijf wordt momenteel niet door Kubernetes-storage gebruikt.
+  op de **kleine SSD** — geen enkele schijf (extern of voormalig intern) wordt door
+  Kubernetes-storage gebruikt; de externe HDD is puur een hostPath-mount voor de SMB-share.
 
 ## Netwerklaag / toegang van buiten
 
@@ -35,8 +41,9 @@ dus deze MachineConfig moet na elke reinstall terugkomen.
 Deze zaten alleen live op het cluster of in `~/okd-sno/`, nu overgezet naar
 [`manifests/machineconfigs/`](../manifests/machineconfigs):
 
-1. **`50-local-storage-mount`** — mount de 4TB-schijf op `/var/mnt/localpv` (XFS,
-   `/dev/disk/by-id/wwn-...`).
+1. **`51-external-hdd-mount`** — mount de externe USB-HDD op `/var/mnt/external-hdd` (exFAT,
+   `/dev/disk/by-id/usb-Verbatim...`). Vervangt `50-local-storage-mount` (verwijderd 2026-07-08 —
+   zie hardware hierboven).
 2. **`99-master-strip-bad-search-domain`** — NetworkManager dispatcher-script dat
    `lab.vdzon.com` uit de DNS search-line van elke pod strip't (zie DNS-gotcha hierboven).
    Zonder deze fix: console 60s+ per pagina, exact het probleem uit de originele install.

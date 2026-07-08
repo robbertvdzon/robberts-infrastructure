@@ -3,36 +3,28 @@
 Deelt een map uit als Samba-share met Time-Machine-ondersteuning, zodat
 MacBooks op het thuisnetwerk erop kunnen backuppen.
 
-**Status: getest en werkend (2026-07-06)** op de interne databaseschijf
-(`/var/mnt/localpv/timemachine`). Geverifieerd vanaf een macOS-client:
-SMB-auth, mounten, schrijven/lezen, en Bonjour/mDNS-advertentie
-(`_adisk._tcp` — de service waarmee Time Machine netwerkschijven ontdekt).
+**Status: getest en werkend, definitieve opzet sinds 2026-07-08.** Draait op
+een externe USB-HDD ("Verbatim Desktop HDD 3.0", 3.7TB, exFAT), gemount op
+`/var/mnt/external-hdd` via [`../machineconfigs/51-external-hdd-mount.yaml`](../machineconfigs/51-external-hdd-mount.yaml).
+Bewuste keuze voor extern/exFAT i.p.v. de voormalige interne 4TB-schijf: bij
+een kapotte OpenShift-machine kan de schijf losgekoppeld en direct op een Mac
+aangesloten worden — dat werkt niet met een schijf die in de server vastzit.
+De interne 4TB-schijf (`/var/mnt/localpv`) is hierdoor overbodig geworden en
+z'n MachineConfig (`50-local-storage-mount`) is verwijderd.
+
+Geverifieerd vanaf een macOS-client: SMB-auth, mounten, schrijven/lezen, en
+Bonjour/mDNS-advertentie (`_adisk._tcp` — de service waarmee Time Machine
+netwerkschijven ontdekt), inclusief bevestiging dat data daadwerkelijk op de
+exFAT-partitie landt (`df` binnen de pod toont `/dev/sdc2`, niet de OS-schijf).
 Nog **niet** getest: een volledige, langlopende Time Machine-backup (alleen
 handmatige bestandsoperaties via `mount_smbfs`). Zie
 [../../docs/smb-timemachine-test-procedure.md](../../docs/smb-timemachine-test-procedure.md)
-voor hoe je dat verifieert en hoe je dit zelf opnieuw kan testen.
+voor hoe je dat verifieert.
 
-**Test (2026-07-07): externe USB-HDD (exFAT) i.p.v. de interne schijf** —
-zelfde CLI-testprocedure herhaald tegen een externe "Verbatim Desktop HDD 3.0"
-(3.7TB, exFAT), aangesloten op de OpenShift-node. Doel: verifiëren dat een
-externe schijf een bruikbaar alternatief is voor het disaster-recovery-
-scenario (schijf loskoppelen, direct op een Mac aansluiten als de OpenShift-
-machine kapot is). **Geslaagd** — zelfde resultaten als hierboven (mount,
-schrijven/lezen, Bonjour-advertentie), plus geverifieerd dat de data
-daadwerkelijk op de exFAT-partitie landt (`df` binnen de pod toont `/dev/sdc2`,
-niet de OS-schijf).
-
-Twee dingen zijn voor deze test bewust anders dan de vaste opzet:
-- `SAMBA_VOLUME_CONFIG_timemachine` gebruikt `fruit:metadata = netatalk` +
-  `fruit:resource = file` i.p.v. `streams_xattr` — exFAT ondersteunt geen
-  xattrs, `streams_xattr` heeft die nodig.
-- De mount zelf staat **nog niet** in een MachineConfig
-  (`../machineconfigs/51-external-hdd-mount.yaml` staat klaar maar is bewust
-  nog niet toegepast — dat triggert een node-reboot). Tot die is toegepast is
-  de mount handmatig gezet via `nsenter -a -t 1` op de node en **overleeft
-  geen reboot**. Na een reboot moet je 'm opnieuw handmatig mounten, of eerst
-  `oc apply -f ../machineconfigs/51-external-hdd-mount.yaml` draaien
-  (met een reboot als consequentie).
+Eén ding is bewust anders dan bij een gewone XFS-schijf: `SAMBA_VOLUME_CONFIG_timemachine`
+gebruikt `fruit:metadata = netatalk` + `fruit:resource = file` i.p.v.
+`streams_xattr` — exFAT ondersteunt geen xattrs, `streams_xattr` heeft die
+nodig.
 
 ## Waarom deze keuzes
 
@@ -43,9 +35,8 @@ Twee dingen zijn voor deze test bewust anders dan de vaste opzet:
   (multicast) — dat werkt niet betrouwbaar door de pod-overlay heen. Met
   hostNetwork draait de share op het node-IP (`192.168.178.64`), rechtstreeks
   bereikbaar op het LAN.
-- **hostPath naar `/var/mnt/localpv`**: geen aparte StorageClass, gewoon
-  direct de gemounte schijf (zie [../../docs/architecture.md](../../docs/architecture.md)
-  voor waarom die schijf toch al vrij is).
+- **hostPath naar `/var/mnt/external-hdd`**: geen aparte StorageClass, gewoon
+  direct de gemounte schijf (zie [../../docs/architecture.md](../../docs/architecture.md)).
 - **initContainer `init-permissions`**: kubelet maakt een lege hostPath-
   subPath-directory aan als `root:root 0700` — ontoegankelijk voor de
   gemapte SMB-user. Getest: zonder deze initContainer geeft `mount_smbfs`

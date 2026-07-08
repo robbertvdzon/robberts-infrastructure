@@ -13,14 +13,14 @@
 # ../../docs/architecture.md of run:
 #   oc adm policy add-scc-to-user privileged -z samba-timemachine -n smb-timemachine
 #
-# TEST: externe USB-HDD (exFAT) i.p.v. de interne 4TB-schijf — zie
-# ../machineconfigs/51-external-hdd-mount.yaml. exFAT heeft geen xattr-
+# Externe USB-HDD (exFAT) — definitieve opzet sinds 2026-07-08, zie
+# ../machineconfigs/51-external-hdd-mount.yaml (vervangt de voormalige interne
+# 4TB-schijf, MachineConfig daarvoor is verwijderd). exFAT heeft geen xattr-
 # ondersteuning, dus `fruit:metadata = netatalk` + `fruit:resource = file`
 # i.p.v. `streams_xattr` (dat laatste heeft xattr-syscalls nodig die exFAT
 # niet ondersteunt). Mount-opties (uid=1000,gid=1000) regelen ownership op
 # schijfniveau — de initContainer-chown hieronder is voor exFAT dus een
-# no-op-maar-onschadelijke stap, blijft staan zodat dit manifest ook weer
-# tegen de interne XFS-schijf werkt zonder aanpassing.
+# onschadelijke no-op, maar blijft staan als generieke permissie-vangnet.
 #
 # Dit is een eerste opzet — nog niet getest op een echte Time Machine-backup.
 # Verifieer na deploy met een macOS-client voordat je erop vertrouwt.

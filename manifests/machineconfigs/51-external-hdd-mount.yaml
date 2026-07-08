@@ -9,14 +9,15 @@
 # mount-opties bepalen de eigenaar van ALLE bestanden op de share (moet
 # overeenkomen met UID_robbert in ../smb-timemachine/deployment.yaml).
 #
-# Getest via handmatige `mount` op de node (2026-07-07) vóór dit
-# MachineConfig-bestand aan te maken: mount + chown + Samba-share werken.
+# Getest via handmatige `mount` op de node (2026-07-07): mount + chown +
+# Samba-share werken. Op 2026-07-08 permanent gemaakt via dit MachineConfig —
+# de externe HDD is nu de definitieve Time Machine-bestemming (vervangt de
+# interne 4TB-schijf, zie ../smb-timemachine/README.md en
+# 50-local-storage-mount.yaml die om die reden is verwijderd).
 #
-# LET OP — dit bestand toepassen (oc apply) triggert een node-reboot (MCO
-# herstart de node altijd bij een MachineConfig-wijziging, ook voor een
-# nieuwe systemd-unit). Op deze SNO-cluster betekent dat een paar minuten
-# downtime voor ALLES. Pas toepassen na een geslaagde handmatige test — zie
-# ../smb-timemachine/README.md.
+# LET OP — dit bestand (opnieuw) toepassen triggert een node-reboot (MCO
+# herstart de node altijd bij een MachineConfig-wijziging). Op deze
+# SNO-cluster betekent dat een paar minuten downtime voor ALLES.
 #
 # Apply met: oc apply -f 51-external-hdd-mount.yaml
 apiVersion: machineconfiguration.openshift.io/v1

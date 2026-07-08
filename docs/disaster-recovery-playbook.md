@@ -85,8 +85,10 @@ oc get nodes
 oc get co   # alle operators Available=True, Degraded=False
 ```
 
-**Verwacht**: `/dev/sdb` (de 4TB/12TB-schijf) is nog fysiek aanwezig maar
-NIET gemount — dat gebeurt in de volgende stap.
+**Verwacht**: de externe USB-HDD (Time Machine-bestemming) is nog fysiek aangesloten maar
+NIET gemount — dat gebeurt in de volgende stap. **Sluit de schijf aan vóórdat je dit script
+draait**, anders faalt de mount-unit stil (heeft `nofail`, dus blokkeert de boot niet, maar
+je moet 'm dan alsnog los aansluiten en de node handmatig laten remounten of opnieuw rebooten).
 
 ## 2. Node-level MachineConfigs
 
@@ -94,14 +96,14 @@ NIET gemount — dat gebeurt in de volgende stap.
 ./scripts/machineconfig/apply-machineconfigs.sh
 ```
 
-Dit mount de databaseschijf op `/var/mnt/localpv` en fixt de DNS
+Dit mount de externe USB-HDD op `/var/mnt/external-hdd` en fixt de DNS
 search-domain-bug (zonder deze stap: console 60s+ traag, zie
 [architecture.md](architecture.md)). MCO reboot de node — wacht tot
 `oc get mcp master` weer `UPDATED=True` toont.
 
 Verifieer:
 ```bash
-ssh -i ~/.ssh/okd-sno core@192.168.178.64 'df -h /var/mnt/localpv; cat /etc/resolv.conf'
+ssh -i ~/.ssh/okd-sno core@192.168.178.64 'df -h /var/mnt/external-hdd; cat /etc/resolv.conf'
 ```
 
 ## 3. ArgoCD, Sealed Secrets, storage, Reflector

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Apply de node-level MachineConfigs die niet bij een specifieke app horen:
-#   - 50-local-storage-mount: mount de databaseschijf op /var/mnt/localpv
+#   - 51-external-hdd-mount: mount de externe USB-HDD op /var/mnt/external-hdd
+#     (Time Machine-bestemming; vervangt de voormalige 50-local-storage-mount)
 #   - 99-master-strip-bad-search-domain: DNS ndots/search-domain fix (zie
 #     ../../docs/architecture.md voor de root cause)
 #   - 99-master-disable-ipv6 / 99-master-hostname: post-bootstrap vangnet

@@ -1,6 +1,15 @@
 # 4TB → 12TB schijf-migratie
 
-Huidige situatie: `/dev/sdb` (4TB) gemount op `/var/mnt/localpv` via de
+**Achterhaald sinds 2026-07-08.** De interne 4TB-schijf is niet meer in gebruik — de Time
+Machine-share draait nu op een externe USB-HDD (zie [architecture.md](architecture.md) en
+[../manifests/smb-timemachine/README.md](../manifests/smb-timemachine/README.md)), en
+`50-local-storage-mount` is verwijderd. Deze procedure is dus niet meer van toepassing; bewaard
+als referentie voor het onderliggende MachineConfig/`by-label`-patroon, mocht een toekomstige
+schijf-swap (van de externe HDD) ooit nodig zijn.
+
+---
+
+Huidige situatie (historisch, zie boven): `/dev/sdb` (4TB) gemount op `/var/mnt/localpv` via de
 `50-local-storage-mount` MachineConfig, geadresseerd via
 `/dev/disk/by-id/wwn-0x5000c500f15d6c9c` (zie [architecture.md](architecture.md)).
 Dat `by-id` verandert per fysieke schijf — bij een swap moet je dus normaal de

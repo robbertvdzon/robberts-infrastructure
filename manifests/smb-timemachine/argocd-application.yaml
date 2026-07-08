@@ -2,9 +2,9 @@
 #
 # Eenmalig ge-apply'd op het cluster (admin-account nodig — ArgoCD kan
 # zichzelf geen nieuwe Application geven), daarna autonoom beheerd door
-# ArgoCD (self-heal aan, prune aan — de share-data zelf staat op
-# /var/mnt/localpv op de node, niet in een k8s-object, dus prune van de
-# k8s-resources is hier veilig).
+# ArgoCD (self-heal aan, prune aan — de share-data zelf staat op de externe
+# USB-HDD (/var/mnt/external-hdd) op de node, niet in een k8s-object, dus
+# prune van de k8s-resources is hier veilig).
 #
 # Cluster-scoped prerequisite (eenmalig, met de hand — kan ArgoCD niet, zie
 # namespace.yaml/kustomization.yaml: deze ArgoCD-instance draait "namespaced
