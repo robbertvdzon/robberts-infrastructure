@@ -155,7 +155,12 @@ geen `ClusterRole`/`ClusterRoleBinding` aanmaken — preview-ns-labeller's RBAC
 blijft dus ook een losse stap (bewust niet gefixt, zou ArgoCD praktisch
 rechten-op-alles kunnen geven).
 
-Dus altijd eerst dit (namespace-aanmaak + labeller-RBAC, blijft verplicht):
+Dus altijd eerst dit (namespace-aanmaak + labeller-RBAC, blijft verplicht
+voor alle 3 apps — **inclusief softwarefactory-dashboard**: `deploy/base/namespace.yaml`
+staat in die repo maar bewust NIET in `kustomization.yaml`'s resources, dus
+moet apart `apply`'d worden, anders raakt de Application vast op dezelfde
+"namespace ... is not managed"-fout. Vóór 2026-07-08 onopgemerkt omdat die
+namespace al bestond van een oude, ongedocumenteerde handmatige stap):
 
 ```bash
 cd ~/git/personal-news-feed-by-claude-code
@@ -163,6 +168,9 @@ cd ~/git/personal-news-feed-by-claude-code
 
 cd ~/git/robberts-infrastructure
 oc apply -f manifests/smb-timemachine/namespace.yaml
+
+cd ~/git/softwarefactory
+oc apply -f deploy/base/namespace.yaml
 ```
 
 Daarna de root-Application zelf:

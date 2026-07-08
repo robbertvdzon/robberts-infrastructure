@@ -18,7 +18,7 @@ personal-news-feed-preview-namespaces, en de app-of-apps-consolidatie (zie
 | `root-apps` (app-of-apps) | Ja | 1 `oc apply` — beheert de 3 apps hieronder zelf |
 | `personal-news-feed` (namespace + secrets + labeller-RBAC) | Ja | Gedeeltelijk — eigen `deploy/bootstrap.sh` blijft verplicht (Application-pointer zelf komt via root-apps, zie hieronder waarom namespace-aanmaak niet vervalt) |
 | `smb-timemachine` (namespace) | Ja | Gedeeltelijk — `oc apply -f namespace.yaml` blijft verplicht (zie hieronder) |
-| `softwarefactory-dashboard` | Ja | Ja — volledig via root-apps (namespace bestond hier al vóór de eerste sync) |
+| `softwarefactory-dashboard` (namespace) | Ja | Gedeeltelijk — `oc apply -f deploy/base/namespace.yaml` (softwarefactory-repo) blijft verplicht; nooit eerder gescript geweest (gat gevonden 2026-07-08, zie hieronder) |
 | `agent-access` (read-only ServiceAccount) | Ja | Gedeeltelijk — apply is gescript, token-generatie niet |
 | PVC `personal-news-feed/backend-data` | Ja | Ja (StorageClass-provisioned, geen data-backup nodig — check met Robbert of de inhoud vervangbaar is) |
 | ~~YouTrack~~ | **Nee — verwijderd 2026-07-08** | n.v.t. |
@@ -103,9 +103,12 @@ personal-news-feed/software-factory zelf deployen.
   (zie punt 8 hieronder voor het bekende, nog niet gefixte namespace-cleanup-gat).
 - **smb-timemachine** — namespace blijft een losse `oc apply` (cluster-scoped, kan ArgoCD niet), de
   Application zelf komt nu via root-apps.
-- **softwarefactory-dashboard** — volledig via root-apps; de namespace bestond hier al vóór de
-  eerste sync (dus nooit het kip-en-ei-probleem geraakt — niet omdat `CreateNamespace=true` het
-  zelf oploste, zie §1 hierboven).
+- **softwarefactory-dashboard** — de Application zelf via root-apps, maar de namespace **niet**:
+  `software-factory`-repo heeft een `deploy/base/namespace.yaml` die bewust buiten
+  `kustomization.yaml`'s resources staat (net als bij de andere apps), maar er was nooit een
+  bootstrap-script of playbook-stap die 'm daadwerkelijk apply't. Onopgemerkt sinds de namespace
+  al bestond (oude, ongedocumenteerde handmatige aanmaak) — gevonden en gefixt in de playbook
+  op 2026-07-08 (`oc apply -f deploy/base/namespace.yaml` toegevoegd als expliciete stap).
 
 ### 7. agent-access (read-only ServiceAccount voor Claude Code/agents/Telegram-assistent)
 `oc apply -k manifests/agent-access/` is volledig declaratief/idempotent. Maar de token +

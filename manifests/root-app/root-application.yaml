@@ -28,8 +28,14 @@
 #   3. Namespace `personal-news-feed` + preview-ns-labeller-RBAC (via
 #      personal-news-feed-by-claude-code/deploy/bootstrap.sh)
 #   4. Namespace `smb-timemachine` (via manifests/smb-timemachine/namespace.yaml)
-#   (softwarefactory-dashboard's namespace bestond al vóór de eerste sync —
-#   dus geen probleem gehad, niet omdat CreateNamespace=true het zelf oploste)
+#   5. Namespace `software-factory` (via softwarefactory-repo's
+#      deploy/base/namespace.yaml — staat bewust NIET in die repo's
+#      kustomization.yaml, dus moet apart `oc apply`'d worden:
+#      `oc apply -f deploy/base/namespace.yaml` vanuit die repo. Vóór
+#      2026-07-08 onopgemerkt omdat die namespace al bestond van een oude,
+#      ongedocumenteerde handmatige stap — geen "CreateNamespace=true werkt
+#      hier wel"-uitzondering, gewoon een gat dat nooit een probleem gaf op
+#      het huidige, nooit-opnieuw-geïnstalleerde cluster.)
 #
 # Apply met:
 #   oc apply -f manifests/root-app/root-application.yaml

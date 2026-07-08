@@ -136,10 +136,15 @@ cd ~/git/personal-news-feed-by-claude-code
 ./deploy/bootstrap.sh
 ```
 
-En smb-timemachine's namespace (zelfde reden, blijft verplicht):
+En smb-timemachine's + softwarefactory-dashboard's namespace (zelfde reden,
+blijft verplicht — die van software-factory werd hiervoor nog nooit gescript,
+zag je niet omdat de namespace al bestond):
 ```bash
 cd ~/git/robberts-infrastructure
 oc apply -f manifests/smb-timemachine/namespace.yaml
+
+cd ~/git/softwarefactory
+oc apply -f deploy/base/namespace.yaml
 ```
 
 Daarna de root-Application die alle 3 apps aanmaakt/beheert:
