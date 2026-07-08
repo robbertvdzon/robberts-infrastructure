@@ -24,13 +24,19 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      # CreateNamespace=true kan hier sinds 2026-07-08 weer aan: de
-      # argocd-application-controller-ServiceAccount kreeg toen alsnog het
-      # cluster-scoped recht om Namespace-objecten aan te maken (zie
-      # ../../cluster-bootstrap/argocd-namespace-creator-rbac.yaml) — dat
-      # ontbrak eerder volledig (bevestigd met `oc auth can-i`), vandaar de
-      # oude workaround via bootstrap.sh. bootstrap.sh blijft 'm voor de
-      # zekerheid ook nog aanmaken (idempotent, onschadelijk dubbelop).
+      # CreateNamespace=true + managedNamespaceMetadata staan aan sinds
+      # 2026-07-08 (../../cluster-bootstrap/argocd-namespace-creator-rbac.yaml
+      # gaf de controller-ServiceAccount create/update/patch-recht op
+      # Namespace-objecten) — MAAR dit vervangt bootstrap.sh's eigen
+      # `oc create namespace` NIET. Geverifieerd met een echte test-PR
+      # (2026-07-08): deze ArgoCD-installatie houdt een aparte allow-list bij
+      # (secret argocd-default-cluster-config, veld `namespaces`) die pas
+      # gevuld wordt NA het zien van een al-bestaande, al-gelabelde
+      # namespace — een Application kan een namespace dus nooit voor het
+      # eerst zelf aanmaken (kip-en-ei). bootstrap.sh blijft dus verplicht;
+      # CreateNamespace=true is hier alleen nuttig om de labels correct te
+      # houden zodra de namespace al bestaat. Zie
+      # ../../docs/cluster-inventory.md §1 voor de volledige uitleg.
       - CreateNamespace=true
     managedNamespaceMetadata:
       labels:

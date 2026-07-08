@@ -88,6 +88,20 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
   dat repo. Verhuizen kan, maar vereist een cross-repo GitHub-token voor CI
   én (voor personal-news-feed) een herontwerp van het preview-mechanisme —
   bewust nog niet gedaan.
+- **Namespace-aanmaak kan NOOIT via ArgoCD zelf, ook niet met `CreateNamespace=true`.**
+  Geverifieerd 2026-07-08 met een echte test-PR: deze ArgoCD-installatie houdt een aparte,
+  actieve allow-list bij (secret `argocd-default-cluster-config` in de `argocd`-namespace,
+  veld `namespaces` — kommagescheiden lijst van namespaces die 'ie mag beheren). Die lijst vult
+  zichzelf pas ná het zien van een namespace mét het label `argocd.argoproj.io/managed-by=argocd`
+  (binnen ~10s, automatisch bijgehouden door de argocd-operator) — dus een Application kan een
+  namespace nooit voor het eerst zelf aanmaken, ongeacht RBAC (kip-en-ei: mag pas beheren nadat
+  iets buiten ArgoCD 'm al heeft aangemaakt+gelabeld). Er is daarom altijd een handmatige/gescripte
+  stap nodig per nieuwe namespace (`bootstrap.sh`, een losse `namespace.yaml`-apply, of
+  preview-ns-labeller voor dynamische PR-previews) — zie
+  [cluster-inventory.md](cluster-inventory.md) §1 voor de volledige onderbouwing. Een aparte
+  `ClusterRole`/`ClusterRoleBinding` (`manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml`)
+  geeft de controller wél het raw-RBAC-recht om namespaces te create/update/patchen — nodig zodra
+  een namespace al bestaat (voor `managedNamespaceMetadata`), maar lost dit kip-en-ei-probleem niet op.
 - **Sealed Secrets**: elke app committed een `SealedSecret` in git, versleuteld met het
   publieke cert van de sealed-secrets-controller. De **private key** leeft alleen in-cluster
   (`kube-system`, secret met label `sealedsecrets.bitnami.com/sealed-secrets-key`) — die

@@ -135,28 +135,39 @@ ArgoCD-Application met de hand aan te maken; die beheert de andere 2 zelf
 en softwarefactory-dashboard blijven wel gewoon in hun eigen repo
 CI-gebumpt — alleen de Application-*pointer* staat nu hier op één plek.
 
-De ArgoCD-namespace-creator-RBAC uit stap 3 zorgt dat `CreateNamespace=true`
-nu ook echt werkt — dus in principe volstaat:
+**Belangrijk — namespaces moeten hoe dan ook eerst met de hand/script
+aangemaakt EN gelabeld worden.** `CreateNamespace=true` alleen is niet
+genoeg: deze ArgoCD-installatie houdt een aparte, actieve allow-list bij
+(secret `argocd-default-cluster-config` in de `argocd`-namespace, veld
+`namespaces`) van welke namespaces 'ie mag beheren. Die lijst vult zichzelf
+pas ná het zien van een namespace met het label
+`argocd.argoproj.io/managed-by=argocd` — dus een Application kan een
+namespace nooit voor het eerst zelf aanmaken (kip-en-ei, geverifieerd
+2026-07-08 met een echte test-PR: bleef vastzitten op "namespace ... is not
+managed" tot de namespace handmatig aangemaakt+gelabeld was, waarna de
+allow-list zich binnen enkele seconden vanzelf bijwerkte). De
+namespace-creator-RBAC (stap 3 hierboven) is dus wél nodig zodra een
+namespace al bestaat (voor de labels/updates van `managedNamespaceMetadata`),
+maar lost dit kip-en-ei-probleem niet op.
+
+Dus altijd eerst dit (namespace-aanmaak, blijft verplicht):
+
+```bash
+cd ~/git/personal-news-feed-by-claude-code
+./deploy/bootstrap.sh   # maakt o.a. de namespace + app-secrets + preview-ns-labeller-RBAC
+
+cd ~/git/robberts-infrastructure
+oc apply -f manifests/smb-timemachine/namespace.yaml
+```
+
+Daarna de root-Application zelf:
 
 ```bash
 oc apply -f manifests/root-app/root-application.yaml
 ```
 
 Dit maakt/adopteert alle 3 Applications (`personal-news-feed`,
-`smb-timemachine`, `softwarefactory-dashboard`) — self-heal + prune aan, en
-laat ArgoCD zelf de 2 namespaces aanmaken.
-
-**Nog niet met een echte reinstall geverifieerd** — als een namespace toch
-niet vanzelf verschijnt, vallen deze twee handmatige stappen terug als
-fallback (zelfde als vóór de RBAC-fix):
-
-```bash
-cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh   # maakt o.a. de namespace + app-secrets + preview-ns-labeller
-
-cd ~/git/robberts-infrastructure
-oc apply -f manifests/smb-timemachine/namespace.yaml
-```
+`smb-timemachine`, `softwarefactory-dashboard`) — self-heal + prune aan.
 
 (`bootstrap.sh` doet sowieso nog steeds app-secrets + preview-ns-labeller +
 de ApplicationSet, dus die blijft je altijd draaien — alleen de

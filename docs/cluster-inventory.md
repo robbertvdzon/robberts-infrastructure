@@ -16,9 +16,9 @@ personal-news-feed-preview-namespaces, en de app-of-apps-consolidatie (zie
 | Reflector | Ja | Ja — `bootstrap-cluster.sh` |
 | MachineConfigs (4 custom) | Ja | Ja — `apply-machineconfigs.sh` |
 | `root-apps` (app-of-apps) | Ja | 1 `oc apply` — beheert de 3 apps hieronder zelf |
-| `personal-news-feed` (namespace + secrets + labeller) | Ja | Grotendeels — eigen `deploy/bootstrap.sh` (Application-pointer zelf komt via root-apps) |
-| `smb-timemachine` (namespace) | Ja | Ja — `CreateNamespace=true` werkt sinds de namespace-creator-RBAC-fix (nog niet met een echte reinstall bevestigd; `namespace.yaml` blijft als fallback) |
-| `softwarefactory-dashboard` | Ja | Ja — volledig via root-apps (eigen `CreateNamespace=true`) |
+| `personal-news-feed` (namespace + secrets + labeller-RBAC) | Ja | Gedeeltelijk — eigen `deploy/bootstrap.sh` blijft verplicht (Application-pointer zelf komt via root-apps, zie hieronder waarom namespace-aanmaak niet vervalt) |
+| `smb-timemachine` (namespace) | Ja | Gedeeltelijk — `oc apply -f namespace.yaml` blijft verplicht (zie hieronder) |
+| `softwarefactory-dashboard` | Ja | Ja — volledig via root-apps (namespace bestond hier al vóór de eerste sync) |
 | `agent-access` (read-only ServiceAccount) | Ja | Gedeeltelijk — apply is gescript, token-generatie niet |
 | PVC `personal-news-feed/backend-data` | Ja | Ja (StorageClass-provisioned, geen data-backup nodig — check met Robbert of de inhoud vervangbaar is) |
 | ~~YouTrack~~ | **Nee — verwijderd 2026-07-08** | n.v.t. |
@@ -36,11 +36,21 @@ kan na reinstall licht afwijken (functioneel geen probleem).
 `argocd-argocd-application-controller`-ServiceAccount alleen per-namespace `Role`/`RoleBinding`'s (in
 namespaces die 'ie al beheert), nooit een cluster-brede `ClusterRoleBinding` — bevestigd met
 `oc auth can-i create namespaces --as=system:serviceaccount:argocd:argocd-argocd-application-controller`
-(gaf "no" vóór de fix). Zonder dit werkte `CreateNamespace=true` in een Application dus nooit echt,
-ook al stond het bij `softwarefactory-dashboard` al jaren onopgemerkt "aan" (dode config — die
-namespace bestond al via een andere weg). Nu gefixt met een losse, minimale `ClusterRole` (alleen
+(gaf "no" vóór de fix). Nu gefixt met een losse, minimale `ClusterRole` (alleen
 `create`/`get`/`list`/`watch`/`update`/`patch` op `namespaces`, bewust **geen** `delete`) —
 zie `manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml`.
+
+**Deze RBAC-fix lost het "namespaced mode"-probleem NIET volledig op** — met een echte test-PR
+(2026-07-08) bleek een tweede, onafhankelijke laag: secret `argocd-default-cluster-config` (namespace
+`argocd`) houdt een veld `namespaces` bij — een expliciete, kommagescheiden allow-list van namespaces
+die deze ArgoCD-installatie mag beheren. Die lijst vult zichzelf pas ná het zien van een namespace
+mét het label `argocd.argoproj.io/managed-by=argocd` (geverifieerd: na handmatig `oc create namespace`
++ `oc label` verscheen de namespace binnen ~10s vanzelf op de allow-list, en synct de Application
+daarna probleemloos). **`CreateNamespace=true` kan dus nooit een namespace voor het eerst zelf
+aanmaken** — er is altijd een namespace-aanmaak+label-stap buiten ArgoCD nodig (bootstrap.sh,
+`namespace.yaml`, of preview-ns-labeller). De namespace-creator-RBAC hierboven blijft wel nuttig
+zodra een namespace al bestaat (voor de `update`/`patch` die `managedNamespaceMetadata` gebruikt om
+labels te blijven zetten).
 
 ### 2. Sealed Secrets — grootste risico in de hele stack
 Controller-install zelf is gepind (`v0.27.0`, declaratief). Het probleem is de **private key**: elk

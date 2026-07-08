@@ -1,14 +1,18 @@
 # Verhuisd hierheen vanuit ../../smb-timemachine/argocd-application.yaml
 # (2026-07-08, app-of-apps-consolidatie).
 #
-# CreateNamespace=true kan hier sinds 2026-07-08 aan: de
-# argocd-application-controller-ServiceAccount kreeg toen het cluster-scoped
-# recht om Namespace-objecten aan te maken (zie
-# ../../cluster-bootstrap/argocd-namespace-creator-rbac.yaml) — dat ontbrak
-# eerder volledig (bevestigd via `oc auth can-i create namespaces --as=...`
-# → "no"), vandaar de oude handmatige `oc apply -f namespace.yaml`-stap.
-# manifests/smb-timemachine/namespace.yaml blijft bewust staan als fallback/
-# troubleshooting-stap mocht dit onverhoopt niet werken bij een reinstall.
+# CreateNamespace=true + managedNamespaceMetadata staan aan sinds 2026-07-08
+# (../../cluster-bootstrap/argocd-namespace-creator-rbac.yaml gaf de
+# controller-ServiceAccount het recht om Namespace-objecten te
+# create/update/patchen) — MAAR dit vervangt de handmatige
+# `oc apply -f manifests/smb-timemachine/namespace.yaml`-stap NIET.
+# Geverifieerd met een echte test-PR (2026-07-08): deze ArgoCD-installatie
+# houdt een aparte allow-list bij (secret argocd-default-cluster-config,
+# veld `namespaces`) die pas gevuld wordt NA het zien van een al-bestaande,
+# al-gelabelde namespace — een Application kan een namespace dus nooit voor
+# het eerst zelf aanmaken (kip-en-ei). CreateNamespace=true is hier alleen
+# nuttig om de labels correct te houden zodra de namespace al bestaat. Zie
+# ../../docs/cluster-inventory.md §1 voor de volledige uitleg.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

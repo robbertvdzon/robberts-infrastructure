@@ -68,10 +68,13 @@ niet meer hier, maar in
 — zie [`../root-app/root-application.yaml`](../root-app/root-application.yaml)
 voor hoe je die (samen met de andere 2 apps) in één keer installeert.
 
-Sinds de ArgoCD-namespace-creator-RBAC-fix (2026-07-08) maakt de
-root-Application de namespace zelf aan (`CreateNamespace=true`) — de
-onderstaande stap is dus alleen nog een **fallback** als dat onverwacht niet
-lukt (bv. bij een verse reinstall, nog niet end-to-end getest):
+Eenmalige cluster-scoped prereq — **blijft verplicht**, ook na de
+namespace-creator-RBAC-fix van 2026-07-08: die geeft ArgoCD wel het recht om
+een namespace te *beheren* zodra 'ie al bestaat en gelabeld is, maar een
+Application kan een namespace nooit voor het eerst zelf aanmaken op deze
+cluster (geverifieerd met een echte test-PR — zie
+[../../docs/cluster-inventory.md](../../docs/cluster-inventory.md) §1 voor
+de volledige uitleg van dat mechanisme):
 ```bash
 export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig   # break-glass admin, zie
                                                     # ../../docs/access-and-credentials.md
