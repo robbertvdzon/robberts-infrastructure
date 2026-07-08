@@ -17,7 +17,7 @@ personal-news-feed-preview-namespaces, en de app-of-apps-consolidatie (zie
 | MachineConfigs (4 custom) | Ja | Ja — `apply-machineconfigs.sh` |
 | `root-apps` (app-of-apps) | Ja | 1 `oc apply` — beheert de 3 apps hieronder zelf |
 | `personal-news-feed` (namespace + secrets + labeller) | Ja | Grotendeels — eigen `deploy/bootstrap.sh` (Application-pointer zelf komt via root-apps) |
-| `smb-timemachine` (namespace) | Ja | Gedeeltelijk — 1 los `oc apply`-commando (Namespace, cluster-scoped, kan ArgoCD niet) |
+| `smb-timemachine` (namespace) | Ja | Ja — `CreateNamespace=true` werkt sinds de namespace-creator-RBAC-fix (nog niet met een echte reinstall bevestigd; `namespace.yaml` blijft als fallback) |
 | `softwarefactory-dashboard` | Ja | Ja — volledig via root-apps (eigen `CreateNamespace=true`) |
 | `agent-access` (read-only ServiceAccount) | Ja | Gedeeltelijk — apply is gescript, token-generatie niet |
 | PVC `personal-news-feed/backend-data` | Ja | Ja (StorageClass-provisioned, geen data-backup nodig — check met Robbert of de inhoud vervangbaar is) |
@@ -31,6 +31,16 @@ Community `argocd-operator` (OLM Subscription, channel `alpha`) + minimale ArgoC
 Manifests: `manifests/cluster-bootstrap/`. Volledig declaratief, `bootstrap-cluster.sh` stap 1-2.
 Kleine kwetsbaarheid: `installPlanApproval: Automatic` zonder gepinde `startingCSV` — operator-versie
 kan na reinstall licht afwijken (functioneel geen probleem).
+
+**Namespace-creator-RBAC (2026-07-08, `bootstrap-cluster.sh` stap 3):** de argocd-operator geeft de
+`argocd-argocd-application-controller`-ServiceAccount alleen per-namespace `Role`/`RoleBinding`'s (in
+namespaces die 'ie al beheert), nooit een cluster-brede `ClusterRoleBinding` — bevestigd met
+`oc auth can-i create namespaces --as=system:serviceaccount:argocd:argocd-argocd-application-controller`
+(gaf "no" vóór de fix). Zonder dit werkte `CreateNamespace=true` in een Application dus nooit echt,
+ook al stond het bij `softwarefactory-dashboard` al jaren onopgemerkt "aan" (dode config — die
+namespace bestond al via een andere weg). Nu gefixt met een losse, minimale `ClusterRole` (alleen
+`create`/`get`/`list`/`watch`/`update`/`patch` op `namespaces`, bewust **geen** `delete`) —
+zie `manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml`.
 
 ### 2. Sealed Secrets — grootste risico in de hele stack
 Controller-install zelf is gepind (`v0.27.0`, declaratief). Het probleem is de **private key**: elk

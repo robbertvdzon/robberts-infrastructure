@@ -1,10 +1,14 @@
 # Verhuisd hierheen vanuit ../../smb-timemachine/argocd-application.yaml
-# (2026-07-08, app-of-apps-consolidatie) — inhoud ongewijzigd.
+# (2026-07-08, app-of-apps-consolidatie).
 #
-# Cluster-scoped prerequisite (eenmalig, met de hand — kan ArgoCD niet: deze
-# ArgoCD-instance draait "namespaced mode" en mag geen Namespace-object zelf
-# beheren):
-#   oc apply -f manifests/smb-timemachine/namespace.yaml
+# CreateNamespace=true kan hier sinds 2026-07-08 aan: de
+# argocd-application-controller-ServiceAccount kreeg toen het cluster-scoped
+# recht om Namespace-objecten aan te maken (zie
+# ../../cluster-bootstrap/argocd-namespace-creator-rbac.yaml) — dat ontbrak
+# eerder volledig (bevestigd via `oc auth can-i create namespaces --as=...`
+# → "no"), vandaar de oude handmatige `oc apply -f namespace.yaml`-stap.
+# manifests/smb-timemachine/namespace.yaml blijft bewust staan als fallback/
+# troubleshooting-stap mocht dit onverhoopt niet werken bij een reinstall.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -25,6 +29,11 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        argocd.argoproj.io/managed-by: argocd
     retry:
       limit: 5
       backoff:

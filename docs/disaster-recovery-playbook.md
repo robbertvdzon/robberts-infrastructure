@@ -115,7 +115,7 @@ app-repo (zie [architecture.md](architecture.md)):
 ./scripts/bootstrap/bootstrap-cluster.sh
 ```
 
-**Stop hier zodra je in de output "[3/7] Sealed Secrets controller" ziet
+**Stop hier zodra je in de output "[4/8] Sealed Secrets controller" ziet
 verschijnen en de rollout klaar is** (of run het script gewoon door — het is
 idempotent, je kan het na de key-restore gewoon nog een keer draaien):
 
@@ -135,27 +135,32 @@ ArgoCD-Application met de hand aan te maken; die beheert de andere 2 zelf
 en softwarefactory-dashboard blijven wel gewoon in hun eigen repo
 CI-gebumpt — alleen de Application-*pointer* staat nu hier op één plek.
 
-Twee cluster-scoped prereqs kan ArgoCD nog steeds niet zelf ("namespaced
-mode" mag geen Namespace-objecten beheren):
-
-```bash
-cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh   # maakt o.a. de namespace + app-secrets + preview-ns-labeller
-                         # (de Application-apply die dit script ook doet is nu
-                         # overbodig-maar-onschadelijk — root-app beheert 'm al)
-
-cd ~/git/robberts-infrastructure
-oc apply -f manifests/smb-timemachine/namespace.yaml
-```
-
-Daarna de root-Application zelf:
+De ArgoCD-namespace-creator-RBAC uit stap 3 zorgt dat `CreateNamespace=true`
+nu ook echt werkt — dus in principe volstaat:
 
 ```bash
 oc apply -f manifests/root-app/root-application.yaml
 ```
 
-Dit maakt/adopteert meteen alle 3 Applications (`personal-news-feed`,
-`smb-timemachine`, `softwarefactory-dashboard`) — self-heal + prune aan.
+Dit maakt/adopteert alle 3 Applications (`personal-news-feed`,
+`smb-timemachine`, `softwarefactory-dashboard`) — self-heal + prune aan, en
+laat ArgoCD zelf de 2 namespaces aanmaken.
+
+**Nog niet met een echte reinstall geverifieerd** — als een namespace toch
+niet vanzelf verschijnt, vallen deze twee handmatige stappen terug als
+fallback (zelfde als vóór de RBAC-fix):
+
+```bash
+cd ~/git/personal-news-feed-by-claude-code
+./deploy/bootstrap.sh   # maakt o.a. de namespace + app-secrets + preview-ns-labeller
+
+cd ~/git/robberts-infrastructure
+oc apply -f manifests/smb-timemachine/namespace.yaml
+```
+
+(`bootstrap.sh` doet sowieso nog steeds app-secrets + preview-ns-labeller +
+de ApplicationSet, dus die blijft je altijd draaien — alleen de
+namespace-aanmaak erin is nu overbodig-maar-onschadelijk dubbelop.)
 
 ## 5. Verifiëren dat de secrets goed zijn aangekomen
 

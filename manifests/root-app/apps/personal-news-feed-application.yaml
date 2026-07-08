@@ -23,9 +23,18 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions: []
-    # CreateNamespace=true verwijderd: onze ArgoCD draait namespaced en
-    # mag geen Namespace-resources aanmaken. bootstrap.sh maakt 'm.
+    syncOptions:
+      # CreateNamespace=true kan hier sinds 2026-07-08 weer aan: de
+      # argocd-application-controller-ServiceAccount kreeg toen alsnog het
+      # cluster-scoped recht om Namespace-objecten aan te maken (zie
+      # ../../cluster-bootstrap/argocd-namespace-creator-rbac.yaml) — dat
+      # ontbrak eerder volledig (bevestigd met `oc auth can-i`), vandaar de
+      # oude workaround via bootstrap.sh. bootstrap.sh blijft 'm voor de
+      # zekerheid ook nog aanmaken (idempotent, onschadelijk dubbelop).
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        argocd.argoproj.io/managed-by: argocd
     # ServerSideApply=true verwijderd: triggerde ComparisonError op
     # OpenShift Route-CRD ("unable to resolve parseableType").
     retry:

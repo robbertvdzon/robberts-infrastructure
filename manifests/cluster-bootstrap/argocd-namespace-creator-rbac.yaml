@@ -1,0 +1,40 @@
+# Geeft de ArgoCD application-controller het recht om Namespace-objecten aan
+# te maken — zonder dit ontbrak `CreateNamespace=true` in de praktijk elke
+# keer stil: de argocd-operator geeft de controller-ServiceAccount alleen
+# per-namespace Role/RoleBindings (in namespaces die 'ie al beheert), nooit
+# een cluster-brede ClusterRoleBinding. Namespace is cluster-scoped, dus
+# zonder deze ClusterRole kon de controller er nooit één aanmaken (bevestigd
+# via `oc auth can-i create namespaces --as=system:serviceaccount:argocd:
+# argocd-argocd-application-controller` → "no", vóór dit bestand).
+#
+# Bewust GEEN `delete`: namespace-verwijdering blijft altijd een bewuste,
+# handmatige actie — zie de 29 stale pnf-pr-*-namespaces die opgeruimd
+# moesten worden (ArgoCD's ApplicationSet pruned de Application wel bij
+# PR-close, maar had nooit het recht gehad om ook de namespace te prunen, en
+# dat willen we ook niet automatisch geven).
+#
+# `update`/`patch` zijn wel nodig voor `managedNamespaceMetadata` (labels op
+# de namespace zetten/houden bij elke sync), niet alleen voor de aanmaak zelf.
+#
+# Apply met: oc apply -f manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-namespace-creator
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["create", "get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-namespace-creator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-namespace-creator
+subjects:
+  - kind: ServiceAccount
+    name: argocd-argocd-application-controller
+    namespace: argocd

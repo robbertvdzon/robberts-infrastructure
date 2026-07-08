@@ -117,7 +117,7 @@ oc get mcp master -w                              # wacht tot UPDATED=True, dan 
 ./scripts/bootstrap/bootstrap-cluster.sh           # ArgoCD, Sealed Secrets, storage, Reflector — cluster-breed
 ```
 
-**Zodra je "[3/7] Sealed Secrets controller" voorbij ziet komen** (of gewoon
+**Zodra je "[4/8] Sealed Secrets controller" voorbij ziet komen** (of gewoon
 nadat het script helemaal klaar is — maakt niet uit, hieronder werkt sowieso):
 
 ```bash
@@ -126,18 +126,18 @@ nadat het script helemaal klaar is — maakt niet uit, hieronder werkt sowieso):
 ```
 
 Daarna de app-specifieke bootstrap van personal-news-feed (checkt zelf of
-het cluster-brede deel hierboven al staat):
+het cluster-brede deel hierboven al staat; maakt ook secrets/preview-ns-labeller):
 
 ```bash
 cd ~/git/personal-news-feed-by-claude-code
 ./deploy/bootstrap.sh
 ```
 
-Cluster-scoped prereq voor smb-timemachine (ArgoCD mag geen Namespace zelf
-beheren), en dan de root-Application die alle 3 apps aanmaakt/beheert:
+En dan de root-Application die alle 3 apps aanmaakt/beheert (incl. de
+namespaces, dankzij de ArgoCD-namespace-creator-RBAC uit Fase 4 hierboven —
+lukt dat onverwacht niet, val terug op `oc apply -f manifests/smb-timemachine/namespace.yaml`):
 ```bash
 cd ~/git/robberts-infrastructure
-oc apply -f manifests/smb-timemachine/namespace.yaml
 oc apply -f manifests/root-app/root-application.yaml
 ```
 

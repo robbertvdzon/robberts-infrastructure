@@ -11,12 +11,14 @@
 #
 #    1. argocd-operator subscriben via OperatorHub
 #    2. ArgoCD CR apply'en (applicationSet enabled, server-route)
-#    3. Sealed Secrets controller installeren
-#    4. Cluster public-cert ophalen → manifests/cluster-bootstrap/cluster-cert.pem
-#    5. Local-path-provisioner installeren + configureren voor OpenShift
+#    3. ArgoCD namespace-creator RBAC (ClusterRole+Binding, zodat
+#       CreateNamespace=true in een Application ook echt werkt)
+#    4. Sealed Secrets controller installeren
+#    5. Cluster public-cert ophalen → manifests/cluster-bootstrap/cluster-cert.pem
+#    6. Local-path-provisioner installeren + configureren voor OpenShift
 #       (privileged helper-pod, path naar /var/lib, default StorageClass)
-#    6. Reflector (Secret-mirror naar preview-namespaces)
-#    7. ApplicationSet-controller verifiëren (idempotency-patch)
+#    7. Reflector (Secret-mirror naar preview-namespaces)
+#    8. ApplicationSet-controller verifiëren (idempotency-patch)
 #
 # Daarna PER APP nog een eigen (veel kortere) bootstrap-stap nodig:
 # namespace aanmaken + labelen, app-specifieke secrets, de ArgoCD Application
@@ -70,7 +72,7 @@ echo "[bootstrap] user:    $(oc whoami)"
 # laat 'm zichzelf upgraden binnen het channel. Op fresh clusters duurt
 # de eerste install ~2 min (catalog-resolve + image-pull).
 echo
-echo "[1/7] argocd-operator subscription"
+echo "[1/8] argocd-operator subscription"
 oc apply -f "$MANIFEST_DIR/argocd-operator-subscription.yaml"
 
 echo "      wachten op argocd CRD (signal dat de operator klaar is)..."
@@ -91,7 +93,7 @@ echo "      operator ready"
 # vervolgens argocd-server, repo-server, redis, application-controller en
 # applicationset-controller.
 echo
-echo "[2/7] ArgoCD instance ($ARGOCD_NS)"
+echo "[2/8] ArgoCD instance ($ARGOCD_NS)"
 oc create namespace "$ARGOCD_NS" --dry-run=client -o yaml | oc apply -f -
 oc apply -f "$MANIFEST_DIR/argocd-cr.yaml"
 echo "      wachten op argocd-server..."
@@ -99,13 +101,24 @@ oc rollout status -n "$ARGOCD_NS" deploy/argocd-server --timeout=300s 2>/dev/nul
   echo "      (warning: argocd-server niet ready binnen 5 min)"
 oc rollout status -n "$ARGOCD_NS" deploy/argocd-applicationset-controller --timeout=180s 2>/dev/null || true
 
-# ─── 3. Sealed Secrets controller ─────────────────────────────────────
+# ─── 3. ArgoCD namespace-creator RBAC ─────────────────────────────────
+# De argocd-operator geeft de application-controller-ServiceAccount alleen
+# per-namespace Role/RoleBindings (in namespaces die 'ie al beheert), nooit
+# een cluster-brede ClusterRoleBinding — zonder dit kan `CreateNamespace=true`
+# in een Application nooit werken (Namespace is cluster-scoped). Zie
+# ../../manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml voor
+# de volledige uitleg. Bewust GEEN delete-recht.
 echo
-echo "[3/7] Sealed Secrets controller ($SEALED_SECRETS_VERSION)"
+echo "[3/8] ArgoCD namespace-creator RBAC"
+oc apply -f "$MANIFEST_DIR/argocd-namespace-creator-rbac.yaml"
+
+# ─── 4. Sealed Secrets controller ─────────────────────────────────────
+echo
+echo "[4/8] Sealed Secrets controller ($SEALED_SECRETS_VERSION)"
 oc apply -f "https://github.com/bitnami-labs/sealed-secrets/releases/download/${SEALED_SECRETS_VERSION}/controller.yaml"
 oc rollout status -n kube-system deploy/sealed-secrets-controller --timeout=180s
 
-# ─── 4. Cluster cert ophalen ──────────────────────────────────────────
+# ─── 5. Cluster cert ophalen ──────────────────────────────────────────
 # Op een vers cluster heeft de sealed-secrets controller een NIEUWE
 # keypair. Bestaande SealedSecrets in de app-repo's, versleuteld met een
 # OUDE keypair, kunnen dan niet ontsleuteld worden door dit nieuwe cluster.
@@ -117,7 +130,7 @@ oc rollout status -n kube-system deploy/sealed-secrets-controller --timeout=180s
 #       1Password): ./deploy/seal-secrets.sh in de betreffende app-repo,
 #       committen, ArgoCD laten syncen.
 echo
-echo "[4/7] Cluster public-cert ophalen → $CERT_FILE"
+echo "[5/8] Cluster public-cert ophalen → $CERT_FILE"
 mkdir -p "$MANIFEST_DIR"
 if [[ -f "$CERT_FILE" ]]; then
   tmp="$(mktemp)"
@@ -135,12 +148,12 @@ else
   echo "      cert opgehaald — commit $CERT_FILE!"
 fi
 
-# ─── 5. Local-path-provisioner (storage) ──────────────────────────────
+# ─── 6. Local-path-provisioner (storage) ──────────────────────────────
 # OpenShift's restricted SCC blokkeert hostPath, en RHCOS heeft SELinux
 # enforcing — daarom moet de helper-pod privileged draaien. Daarnaast
 # is /opt read-only op RHCOS, dus we routeren naar /var/lib.
 echo
-echo "[5/7] Local-path-provisioner ($LOCAL_PATH_VERSION)"
+echo "[6/8] Local-path-provisioner ($LOCAL_PATH_VERSION)"
 
 # Install
 oc apply -f "https://raw.githubusercontent.com/rancher/local-path-provisioner/${LOCAL_PATH_VERSION}/deploy/local-path-storage.yaml"
@@ -201,21 +214,21 @@ echo "      local-path StorageClass is nu default"
 oc rollout restart -n "$LOCAL_PATH_NS" deploy/local-path-provisioner >/dev/null
 oc rollout status  -n "$LOCAL_PATH_NS" deploy/local-path-provisioner --timeout=60s
 
-# ─── 6. Reflector (Secret-mirror voor preview-namespaces) ─────────────
+# ─── 7. Reflector (Secret-mirror voor preview-namespaces) ─────────────
 # Mirror't Secrets naar nieuwe pnf-*-preview-namespaces (gestuurd via
 # annotations op de Secret zelf, zie personal-news-feed's newsfeed-api-keys).
 # Zonder reflector zou elke preview-namespace een eigen SealedSecret nodig
 # hebben.
 echo
-echo "[6/7] Reflector ($REFLECTOR_VERSION)"
+echo "[7/8] Reflector ($REFLECTOR_VERSION)"
 oc apply -f "https://github.com/emberstack/kubernetes-reflector/releases/download/${REFLECTOR_VERSION}/reflector.yaml"
 oc rollout status -n kube-system deploy/reflector --timeout=120s
 
-# ─── 7. ApplicationSet-controller idempotency-check ───────────────────
+# ─── 8. ApplicationSet-controller idempotency-check ───────────────────
 # De ArgoCD CR (stap 2) zet `applicationSet: {}` al; deze patch is een
 # safety net voor het geval iemand de CR handmatig gewijzigd heeft.
 echo
-echo "[7/7] Verify ApplicationSet-controller"
+echo "[8/8] Verify ApplicationSet-controller"
 oc patch argocd argocd -n "$ARGOCD_NS" --type merge -p '{"spec":{"applicationSet":{}}}' >/dev/null
 oc rollout status -n "$ARGOCD_NS" deploy/argocd-applicationset-controller --timeout=120s 2>/dev/null || true
 
