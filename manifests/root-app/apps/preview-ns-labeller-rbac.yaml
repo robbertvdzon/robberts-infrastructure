@@ -1,0 +1,83 @@
+# RBAC voor de preview-ns-labeller (Deployment: zie
+# preview-ns-labeller-deployment.yaml hiernaast).
+#
+# Verhuisd hierheen vanuit personal-news-feed-by-claude-code/deploy/
+# preview-ns-labeller/rbac.yaml (2026-07-08). Was daar een losse handmatige
+# `oc apply`-stap omdat ArgoCD in namespaced mode geen ClusterRole/
+# ClusterRoleBinding mocht aanmaken — sinds de instance cluster-scoped
+# draait (zie ../../cluster-bootstrap/argocd-operator-subscription.yaml)
+# sync't dit gewoon mee via de root-Application.
+#
+# Heeft toegang tot:
+#   * Applications in de argocd-namespace (read-only) — om destinations te lezen
+#   * Namespaces (cluster-scope, create + label) — voor preview-namespaces;
+#     sinds cluster-scoped ArgoCD maakt CreateNamespace=true ze zelf óók aan,
+#     maar de labeller houdt dit recht: hij labelt/annoteert ze en is het
+#     vangnet als de volgorde spannend wordt
+#   * Secrets (cluster-scope, get/patch) — om PNF_DATABASE_URL te overschrijven
+#     met de branch-specifieke URL in pnf-pr-* namespaces (KAN-55)
+#   * Pods (cluster-scope, delete) — om backend-pods te restarten na een
+#     secret-patch zodat Spring de nieuwe URL oppakt (KAN-55)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: preview-ns-labeller
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: preview-ns-labeller
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+  # KAN-55: PNF_DATABASE_URL patchen in newsfeed-api-keys secret per preview-ns.
+  # Geen 'delete' nodig — reflector beheert de creatie + lifecycle.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  # KAN-55: backend-pod restarten na secret-patch zodat Spring de nieuwe
+  # PNF_DATABASE_URL oppakt. Pod-delete is de minste-rechten manier
+  # (deployment respawnt 'm vanzelf). Geen patch op deployments nodig.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: preview-ns-labeller
+subjects:
+  - kind: ServiceAccount
+    name: preview-ns-labeller
+    namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: preview-ns-labeller
+---
+# Read-only Applications in argocd-namespace (geen cluster-scope nodig).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: preview-ns-labeller-app-reader
+  namespace: argocd
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: preview-ns-labeller-app-reader
+  namespace: argocd
+subjects:
+  - kind: ServiceAccount
+    name: preview-ns-labeller
+    namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: preview-ns-labeller-app-reader

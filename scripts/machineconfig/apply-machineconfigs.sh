@@ -41,5 +41,5 @@ echo "[machineconfigs] klaar. MCO bouwt de rendered config; volg de voortgang me
 echo "  oc get mcp master -w"
 echo
 echo "Een reboot van de node is normaal na een wijziging. Verifieer na de reboot:"
-echo "  ssh -i ~/.ssh/okd-sno core@192.168.178.64 'df -h /var/mnt/localpv'"
+echo "  ssh -i ~/.ssh/okd-sno core@192.168.178.64 'df -h /var/mnt/external-hdd'"
 echo "  ssh -i ~/.ssh/okd-sno core@192.168.178.64 'cat /etc/resolv.conf'  # geen lab.vdzon.com in search"

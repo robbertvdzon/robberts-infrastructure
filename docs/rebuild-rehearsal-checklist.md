@@ -117,7 +117,7 @@ oc get mcp master -w                              # wacht tot UPDATED=True, dan 
 ./scripts/bootstrap/bootstrap-cluster.sh           # ArgoCD, Sealed Secrets, storage, Reflector — cluster-breed
 ```
 
-**Zodra je "[4/8] Sealed Secrets controller" voorbij ziet komen** (of gewoon
+**Zodra je "[3/7] Sealed Secrets controller" voorbij ziet komen** (of gewoon
 nadat het script helemaal klaar is — maakt niet uit, hieronder werkt sowieso):
 
 ```bash
@@ -125,38 +125,16 @@ nadat het script helemaal klaar is — maakt niet uit, hieronder werkt sowieso):
 ./scripts/bootstrap/bootstrap-cluster.sh           # nogmaals — idempotent, maakt de rest af
 ```
 
-Daarna de app-specifieke bootstrap van personal-news-feed (checkt zelf of
-het cluster-brede deel hierboven al staat; maakt de namespace +
-preview-ns-labeller-RBAC — dit blijft nodig, `CreateNamespace=true` kan een
-namespace niet voor het eerst zelf aanmaken op deze ArgoCD-installatie,
-zie [architecture.md](architecture.md)):
+Daarna de root-Application — de enige resource die nog imperatief moet
+(sinds ArgoCD cluster-scoped draait, 2026-07-08, maakt hij namespaces én
+ClusterRoles zelf aan uit git; er zijn géén handmatige namespace-applies
+of losse RBAC-stappen meer, zie [architecture.md](architecture.md)):
 
 ```bash
-cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh
+./scripts/bootstrap/bootstrap-apps.sh
 ```
 
-En smb-timemachine's + softwarefactory-dashboard's namespace (zelfde reden,
-blijft verplicht — die van software-factory werd hiervoor nog nooit gescript,
-zag je niet omdat de namespace al bestond):
-```bash
-cd ~/git/robberts-infrastructure
-oc apply -f manifests/smb-timemachine/namespace.yaml
-
-cd ~/git/softwarefactory
-oc apply -f deploy/base/namespace.yaml
-```
-
-Daarna de root-Application die alle 3 apps aanmaakt/beheert:
-```bash
-oc apply -f manifests/root-app/root-application.yaml
-```
-
-Read-only agent-toegang (voor Claude Code/tester-agents/Telegram-assistent):
-```bash
-oc apply -k manifests/agent-access/
-```
-Token + kubeconfig opnieuw genereren: zie
+Agent-token + kubeconfig opnieuw genereren: zie
 [access-and-credentials.md](access-and-credentials.md) — `SF_KUBECONFIG` in
 `software-factory/secrets.env` blijft naar hetzelfde pad wijzen
 (`~/okd-sno/sno/auth/kubeconfig-agent-readonly`), alleen de inhoud is nieuw.
@@ -165,8 +143,8 @@ Token + kubeconfig opnieuw genereren: zie
 
 ```bash
 oc get application -n argocd
-# verwacht: alle 3 Synced + Healthy (personal-news-feed,
-# softwarefactory-dashboard, smb-timemachine)
+# verwacht: alle 5 Synced + Healthy (root-apps, personal-news-feed,
+# softwarefactory-dashboard, smb-timemachine, agent-access)
 
 oc get pods -A | grep -v Running
 # verwacht: leeg (op Completed jobs na)
@@ -182,6 +160,19 @@ voor de snelle CLI-test.
 - [ ] PC uitzetten
 - [ ] Tijdelijke HDD eruit
 - [ ] Originele SSD terug
+- [ ] **Admin-credentials van het originele cluster terugzetten** —
+      `build-okd-sno.sh` heeft in Fase 2 `~/okd-sno/sno/` weggegooid en
+      opnieuw gegenereerd (`rm -rf sno/`), dus de kubeconfig/kubeadmin-
+      password die daar nu staan horen bij het TEST-cluster, niet bij je
+      originele. Zonder deze stap faalt `oc` hieronder met x509/auth-errors:
+  ```bash
+  cp ~/git/robberts-infrastructure/backups/<timestamp>/okd-sno/sno/auth/kubeconfig ~/okd-sno/sno/auth/kubeconfig
+  cp ~/git/robberts-infrastructure/backups/<timestamp>/okd-sno/sno/auth/kubeadmin-password ~/okd-sno/sno/auth/kubeadmin-password
+  ```
+- [ ] SSH host-key van het test-cluster vergeten (zelfde IP, andere key):
+  ```bash
+  ssh-keygen -R 192.168.178.64
+  ```
 - [ ] Aanzetten, even wachten, `oc get co` — moet er precies zo uitzien als
       vóór vandaag (dit was nooit aangeraakt)
 

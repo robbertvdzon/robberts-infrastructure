@@ -17,3 +17,23 @@ spec:
   name: argocd-operator
   source: community-operators
   sourceNamespace: openshift-marketplace
+  config:
+    env:
+      # Maakt de ArgoCD-instance in de argocd-namespace CLUSTER-SCOPED
+      # (2026-07-08, bewuste keuze). Zonder dit draait de instance in
+      # "namespaced mode": de operator houdt dan een allow-list bij
+      # (secret argocd-default-cluster-config, veld `namespaces`) die pas
+      # gevuld wordt ná het zien van een al-bestaande, gelabelde namespace —
+      # waardoor CreateNamespace=true nooit een namespace voor het éérst
+      # kon aanmaken (kip-en-ei) en elke nieuwe namespace een handmatige
+      # `oc apply`-prereq was. Cluster-scoped vervalt die check en mag
+      # ArgoCD ook cluster-scoped objecten (Namespaces, ClusterRoles)
+      # via GitOps beheren.
+      #
+      # Trade-off: de operator geeft de application-controller hiermee
+      # praktisch cluster-admin. Geaccepteerd: single-user homelab, wie in
+      # de repo's kan committen bestuurt de workloads sowieso al, en de
+      # vangrails zijn git-revert + een reproduceerbare rebuild
+      # (docs/disaster-recovery-playbook.md) — niet RBAC.
+      - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
+        value: argocd

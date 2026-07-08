@@ -68,20 +68,13 @@ niet meer hier, maar in
 — zie [`../root-app/root-application.yaml`](../root-app/root-application.yaml)
 voor hoe je die (samen met de andere 2 apps) in één keer installeert.
 
-Eenmalige cluster-scoped prereq — **blijft verplicht**, ook na de
-namespace-creator-RBAC-fix van 2026-07-08: die geeft ArgoCD wel het recht om
-een namespace te *beheren* zodra 'ie al bestaat en gelabeld is, maar een
-Application kan een namespace nooit voor het eerst zelf aanmaken op deze
-cluster (geverifieerd met een echte test-PR — zie
-[../../docs/cluster-inventory.md](../../docs/cluster-inventory.md) §1 voor
-de volledige uitleg van dat mechanisme):
-```bash
-export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig   # break-glass admin, zie
-                                                    # ../../docs/access-and-credentials.md
-oc apply -f manifests/smb-timemachine/namespace.yaml
-```
+Er is geen handmatige namespace-prereq meer: sinds de ArgoCD-instance
+cluster-scoped draait (2026-07-08) maakt `CreateNamespace=true` de namespace
+zelf aan — zie [../../docs/cluster-inventory.md](../../docs/cluster-inventory.md)
+§1 voor de historie van waarom dat vroeger wél een verplichte losse
+`oc apply -f manifests/smb-timemachine/namespace.yaml` was.
 
-Daarna volledig autonoom (self-heal aan, prune aan). Wachtwoord wijzigen: zie
+Volledig autonoom dus (self-heal aan, prune aan). Wachtwoord wijzigen: zie
 [ROTATE-PASSWORD.md](ROTATE-PASSWORD.md) — ook dat gaat via git + ArgoCD, niet
 via een losse `oc create secret`.
 

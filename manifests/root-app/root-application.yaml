@@ -1,48 +1,31 @@
 # App-of-apps root Application — de ENIGE ArgoCD-Application die je na een
 # reinstall nog met de hand hoeft aan te maken. Deze beheert op zijn beurt
 # alles in apps/:
-#   - 3 app-Applications (personal-news-feed, smb-timemachine,
-#     softwarefactory-dashboard) — elk wijst terug naar de eigen repo van
-#     die app; personal-news-feed en software-factory blijven dus gewoon
-#     los beheerd/CI-gebumpt in hun eigen repo, alleen de
-#     ArgoCD-Application-pointer zelf staat nu hier.
+#   - 4 app-Applications (personal-news-feed, smb-timemachine,
+#     softwarefactory-dashboard, agent-access) — personal-news-feed en
+#     software-factory blijven gewoon los beheerd/CI-gebumpt in hun eigen
+#     repo, alleen de ArgoCD-Application-pointer zelf staat hier.
 #   - personal-news-feed-applicationset.yaml — de PR-preview-ApplicationSet
 #     (verhuisd uit personal-news-feed-by-claude-code/deploy/applicationset.yaml)
 #   - github-pr-token-sealed-secret.yaml — token voor die ApplicationSet
 #     (verhuisd uit een imperatieve bootstrap.sh-stap)
-#   - preview-ns-labeller-deployment.yaml — verhuisd uit personal-news-feed-
-#     by-claude-code/deploy/preview-ns-labeller/deployment.yaml (de
-#     bijbehorende RBAC blijft daar, als losse handmatige stap — zie
-#     hieronder waarom)
+#   - preview-ns-labeller-deployment.yaml + preview-ns-labeller-rbac.yaml —
+#     verhuisd uit personal-news-feed-by-claude-code/deploy/preview-ns-labeller/
+#     (de RBAC kon pas mee toen de instance cluster-scoped werd, 2026-07-08)
 #
-# Consolideert wat vroeger 3 losse `oc apply -f .../argocd-application.yaml`-
-# commando's + 2 losse `oc apply`'s (ApplicationSet, preview-ns-labeller
-# Deployment) waren tot 1 stap. Zie ../../docs/disaster-recovery-playbook.md.
+# Enige prereq vóór je dit apply't: ../../scripts/bootstrap/bootstrap-cluster.sh
+# (ArgoCD cluster-scoped, Sealed Secrets, storage, Reflector) — en bij een
+# rebuild eerst de sealed-secrets-key restoren. Namespaces maakt ArgoCD
+# zelf aan (CreateNamespace=true; werkt sinds de instance cluster-scoped
+# draait, zie ../cluster-bootstrap/argocd-operator-subscription.yaml), en
+# ClusterRoles sync't 'ie ook gewoon uit git.
 #
-# LET OP — nog steeds nodig als losse, handmatige prereqs vóór je dit apply't
-# (dit zijn cluster-scoped/kip-en-ei-stappen die ArgoCD zelf niet kan doen,
-# zie ../../docs/architecture.md voor de volledige uitleg van dit mechanisme):
-#   1. ArgoCD/Sealed Secrets/storage/Reflector via bootstrap-cluster.sh
-#   2. Namespace-creator-RBAC (bootstrap-cluster.sh stap 3) — nodig zodra een
-#      namespace al bestaat, lost het kip-en-ei zelf niet op
-#   3. Namespace `personal-news-feed` + preview-ns-labeller-RBAC (via
-#      personal-news-feed-by-claude-code/deploy/bootstrap.sh)
-#   4. Namespace `smb-timemachine` (via manifests/smb-timemachine/namespace.yaml)
-#   5. Namespace `software-factory` (via softwarefactory-repo's
-#      deploy/base/namespace.yaml — staat bewust NIET in die repo's
-#      kustomization.yaml, dus moet apart `oc apply`'d worden:
-#      `oc apply -f deploy/base/namespace.yaml` vanuit die repo. Vóór
-#      2026-07-08 onopgemerkt omdat die namespace al bestond van een oude,
-#      ongedocumenteerde handmatige stap — geen "CreateNamespace=true werkt
-#      hier wel"-uitzondering, gewoon een gat dat nooit een probleem gaf op
-#      het huidige, nooit-opnieuw-geïnstalleerde cluster.)
-#
-# Apply met:
+# Apply met (of via ../../scripts/bootstrap/bootstrap-apps.sh):
 #   oc apply -f manifests/root-app/root-application.yaml
 #
 # Daarna volledig autonoom: nieuwe/gewijzigde resources in apps/ worden
 # vanzelf aangemaakt/bijgewerkt/verwijderd (prune + selfHeal aan) zodra je
-# commit — met uitzondering van bovenstaande namespace/RBAC-prereqs.
+# commit.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

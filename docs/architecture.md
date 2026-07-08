@@ -65,14 +65,29 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
   en Reflector. Verhuisd hierheen vanuit `personal-news-feed-by-claude-code/deploy/bootstrap.sh`
   (2026-07-07): dat was cluster-brede bootstrap die toevallig in de eerste
   app-repo was beland, niet iets specifiek voor die app — dashboard/
-  smb-timemachine leunen er net zo goed op. Elke app heeft daarna nog een
-  eigen, kortere app-specifieke bootstrap-stap (namespace, app-secrets, de
-  Application zelf) — zie bv. `personal-news-feed-by-claude-code/deploy/bootstrap.sh`.
-- Geen app-of-apps-patroon: elke app heeft een eigen `Application`-resource die **los**
-  `oc apply`'d wordt (geen root-Application die ze allemaal aanmaakt). Drie apps:
-  - `personal-news-feed` (uit `personal-news-feed-by-claude-code` repo)
-  - `softwarefactory-dashboard` (uit `software-factory` repo, `deploy/base`)
-  - `smb-timemachine` (uit **deze** repo, `manifests/smb-timemachine`)
+  smb-timemachine leunen er net zo goed op.
+- **De ArgoCD-instance draait CLUSTER-SCOPED** (sinds 2026-07-08, via
+  `ARGOCD_CLUSTER_CONFIG_NAMESPACES=argocd` op de operator-Subscription):
+  hij mag namespaces zelf aanmaken (`CreateNamespace=true` werkt echt) en
+  beheert ook cluster-scoped objecten (Namespaces, ClusterRoles) gewoon
+  uit git. Trade-off — de controller heeft hiermee praktisch cluster-admin —
+  is een bewuste keuze: het cluster is stateless opgezet, dus de vangrails
+  zijn git-revert en een reproduceerbare rebuild, niet RBAC. Zie de
+  volledige afweging in
+  [`manifests/cluster-bootstrap/argocd-operator-subscription.yaml`](../manifests/cluster-bootstrap/argocd-operator-subscription.yaml).
+- **App-of-apps-patroon** (sinds 2026-07-08): één root-Application
+  ([`manifests/root-app/root-application.yaml`](../manifests/root-app/root-application.yaml))
+  beheert alles in `manifests/root-app/apps/` — de 4 app-Applications, de
+  PR-preview-ApplicationSet, de `github-pr-token`-SealedSecret en
+  preview-ns-labeller's Deployment + RBAC. Vier apps:
+  - `personal-news-feed` (manifests uit `personal-news-feed-by-claude-code` repo)
+  - `softwarefactory-dashboard` (manifests uit `software-factory` repo, `deploy/base`)
+  - `smb-timemachine` (manifests uit **deze** repo, `manifests/smb-timemachine`)
+  - `agent-access` (manifests uit **deze** repo, `manifests/agent-access` —
+    read-only agent-credential, zie [access-and-credentials.md](access-and-credentials.md))
+
+  De enige imperatieve stap na `bootstrap-cluster.sh` is de root-Application
+  zelf applyen — [`scripts/bootstrap/bootstrap-apps.sh`](../scripts/bootstrap/bootstrap-apps.sh).
 
   (YouTrack was hier eerder ook een vierde app — verwijderd 2026-07-08, de
   Software Factory gebruikt sinds de Postgres-tracker-migratie geen YouTrack
@@ -88,20 +103,16 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
   dat repo. Verhuizen kan, maar vereist een cross-repo GitHub-token voor CI
   én (voor personal-news-feed) een herontwerp van het preview-mechanisme —
   bewust nog niet gedaan.
-- **Namespace-aanmaak kan NOOIT via ArgoCD zelf, ook niet met `CreateNamespace=true`.**
-  Geverifieerd 2026-07-08 met een echte test-PR: deze ArgoCD-installatie houdt een aparte,
-  actieve allow-list bij (secret `argocd-default-cluster-config` in de `argocd`-namespace,
-  veld `namespaces` — kommagescheiden lijst van namespaces die 'ie mag beheren). Die lijst vult
-  zichzelf pas ná het zien van een namespace mét het label `argocd.argoproj.io/managed-by=argocd`
-  (binnen ~10s, automatisch bijgehouden door de argocd-operator) — dus een Application kan een
-  namespace nooit voor het eerst zelf aanmaken, ongeacht RBAC (kip-en-ei: mag pas beheren nadat
-  iets buiten ArgoCD 'm al heeft aangemaakt+gelabeld). Er is daarom altijd een handmatige/gescripte
-  stap nodig per nieuwe namespace (`bootstrap.sh`, een losse `namespace.yaml`-apply, of
-  preview-ns-labeller voor dynamische PR-previews) — zie
-  [cluster-inventory.md](cluster-inventory.md) §1 voor de volledige onderbouwing. Een aparte
-  `ClusterRole`/`ClusterRoleBinding` (`manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml`)
-  geeft de controller wél het raw-RBAC-recht om namespaces te create/update/patchen — nodig zodra
-  een namespace al bestaat (voor `managedNamespaceMetadata`), maar lost dit kip-en-ei-probleem niet op.
+- **Historie — waarom namespace-aanmaak vroeger een handmatige stap was**: tot 2026-07-08
+  draaide de instance in "namespaced mode". De operator houdt dan een actieve allow-list bij
+  (secret `argocd-default-cluster-config`, veld `namespaces`) die zichzelf pas vult ná het zien
+  van een al-bestaande namespace mét het label `argocd.argoproj.io/managed-by=argocd` — dus een
+  Application kon een namespace nooit voor het eerst zelf aanmaken, ongeacht RBAC (kip-en-ei,
+  empirisch geverifieerd met een echte test-PR; extra RBAC zoals
+  `manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml` hielp aantoonbaar niet — dat
+  manifest is bewaard als referentie maar wordt niet meer ge-apply'd). Elke nieuwe namespace was
+  daardoor een handmatige/gescripte prereq. De cluster-scoped mode (zie hierboven) heft die
+  allow-list op; zie [cluster-inventory.md](cluster-inventory.md) §1 voor de oude onderbouwing.
 - **Sealed Secrets**: elke app committed een `SealedSecret` in git, versleuteld met het
   publieke cert van de sealed-secrets-controller. De **private key** leeft alleen in-cluster
   (`kube-system`, secret met label `sealedsecrets.bitnami.com/sealed-secrets-key`) — die

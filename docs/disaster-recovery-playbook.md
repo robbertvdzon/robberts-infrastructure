@@ -115,7 +115,7 @@ app-repo (zie [architecture.md](architecture.md)):
 ./scripts/bootstrap/bootstrap-cluster.sh
 ```
 
-**Stop hier zodra je in de output "[4/8] Sealed Secrets controller" ziet
+**Stop hier zodra je in de output "[3/7] Sealed Secrets controller" ziet
 verschijnen en de rollout klaar is** (of run het script gewoon door — het is
 idempotent, je kan het na de key-restore gewoon nog een keer draaien):
 
@@ -127,62 +127,34 @@ idempotent, je kan het na de key-restore gewoon nog een keer draaien):
 Draai daarna `./scripts/bootstrap/bootstrap-cluster.sh` nogmaals (idempotent)
 om de resterende stappen (storage, Reflector) af te maken.
 
-## 4. Apps — één root-Application voor alle 3 (+ ApplicationSet + labeller + token)
+## 4. Apps — één root-Application voor alles
 
-Sinds de app-of-apps-consolidatie (2026-07-08) hoef je nog maar **één**
-ArgoCD-Application met de hand aan te maken; die beheert de rest zelf (zie
-[`manifests/root-app/`](../manifests/root-app/) — 3 app-Applications, de
-PR-preview-ApplicationSet, de `github-pr-token`-SealedSecret, en
-preview-ns-labeller's Deployment). personal-news-feed en
-softwarefactory-dashboard blijven wel gewoon in hun eigen repo CI-gebumpt —
-alleen deze pointers/resources staan nu hier op één plek.
+Sinds de app-of-apps-consolidatie + cluster-scoped ArgoCD (beide 2026-07-08)
+hoef je nog maar **één** ArgoCD-Application met de hand aan te maken; die
+beheert de rest zelf (zie [`manifests/root-app/`](../manifests/root-app/) —
+4 app-Applications incl. agent-access, de PR-preview-ApplicationSet, de
+`github-pr-token`-SealedSecret, en preview-ns-labeller's Deployment + RBAC).
+personal-news-feed en softwarefactory-dashboard blijven wel gewoon in hun
+eigen repo CI-gebumpt — alleen deze pointers/resources staan nu hier op
+één plek.
 
-**Belangrijk — namespaces moeten hoe dan ook eerst met de hand/script
-aangemaakt EN gelabeld worden.** `CreateNamespace=true` alleen is niet
-genoeg: deze ArgoCD-installatie houdt een aparte, actieve allow-list bij
-(secret `argocd-default-cluster-config` in de `argocd`-namespace, veld
-`namespaces`) van welke namespaces 'ie mag beheren. Die lijst vult zichzelf
-pas ná het zien van een namespace met het label
-`argocd.argoproj.io/managed-by=argocd` — dus een Application kan een
-namespace nooit voor het eerst zelf aanmaken (kip-en-ei, geverifieerd
-2026-07-08 met een echte test-PR: bleef vastzitten op "namespace ... is not
-managed" tot de namespace handmatig aangemaakt+gelabeld was, waarna de
-allow-list zich binnen enkele seconden vanzelf bijwerkte). De
-namespace-creator-RBAC (stap 3 hierboven) is dus wél nodig zodra een
-namespace al bestaat (voor de labels/updates van `managedNamespaceMetadata`),
-maar lost dit kip-en-ei-probleem niet op. Om dezelfde reden mag ArgoCD ook
-geen `ClusterRole`/`ClusterRoleBinding` aanmaken — preview-ns-labeller's RBAC
-blijft dus ook een losse stap (bewust niet gefixt, zou ArgoCD praktisch
-rechten-op-alles kunnen geven).
-
-Dus altijd eerst dit (namespace-aanmaak + labeller-RBAC, blijft verplicht
-voor alle 3 apps — **inclusief softwarefactory-dashboard**: `deploy/base/namespace.yaml`
-staat in die repo maar bewust NIET in `kustomization.yaml`'s resources, dus
-moet apart `apply`'d worden, anders raakt de Application vast op dezelfde
-"namespace ... is not managed"-fout. Vóór 2026-07-08 onopgemerkt omdat die
-namespace al bestond van een oude, ongedocumenteerde handmatige stap):
+Namespaces maakt ArgoCD zelf aan (`CreateNamespace=true`), en ook de
+ClusterRole/ClusterRoleBinding van de labeller en agent-access sync't hij
+gewoon uit git. Dat kon vroeger niet: de instance draaide "namespaced mode"
+met een allow-list die zichzelf pas vulde ná het zien van een al-bestaande,
+gelabelde namespace (kip-en-ei, empirisch geverifieerd 2026-07-08). De
+instance is nu cluster-scoped — zie de uitleg en de bewuste trade-off in
+[`manifests/cluster-bootstrap/argocd-operator-subscription.yaml`](../manifests/cluster-bootstrap/argocd-operator-subscription.yaml).
 
 ```bash
-cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh   # namespace + preview-ns-labeller-RBAC (2 stappen, zie deploy/README.md)
-
-cd ~/git/robberts-infrastructure
-oc apply -f manifests/smb-timemachine/namespace.yaml
-
-cd ~/git/softwarefactory
-oc apply -f deploy/base/namespace.yaml
+./scripts/bootstrap/bootstrap-apps.sh
 ```
 
-Daarna de root-Application zelf:
-
-```bash
-oc apply -f manifests/root-app/root-application.yaml
-```
-
-Dit maakt/adopteert alle 3 Applications (`personal-news-feed`,
-`smb-timemachine`, `softwarefactory-dashboard`), de PR-preview-ApplicationSet,
-de `github-pr-token`-SealedSecret, en preview-ns-labeller's Deployment —
-self-heal + prune aan.
+Dit apply't alleen de root-Application; ArgoCD maakt/adopteert daarna alle
+4 Applications (`personal-news-feed`, `smb-timemachine`,
+`softwarefactory-dashboard`, `agent-access`), de PR-preview-ApplicationSet,
+de `github-pr-token`-SealedSecret, en preview-ns-labeller's Deployment +
+RBAC — self-heal + prune aan.
 
 ## 5. Verifiëren dat de secrets goed zijn aangekomen
 
@@ -199,9 +171,8 @@ alsnog moet resealen (zie [backup-and-restore.md](backup-and-restore.md)).
 
 ## 6. Read-only agent-toegang (Claude Code, tester/refiner-agents, Telegram-assistent)
 
-```bash
-oc apply -k manifests/agent-access/
-```
+De namespace/ServiceAccount/RBAC/token-Secret sync't ArgoCD al via de
+`agent-access`-Application (stap 4 hierboven).
 
 Genereer daarna een nieuw token + kubeconfig (zie
 [access-and-credentials.md](access-and-credentials.md)) en zet dat pad in

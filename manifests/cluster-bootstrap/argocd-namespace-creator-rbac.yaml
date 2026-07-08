@@ -1,11 +1,24 @@
+# ⚠️ OBSOLEET sinds 2026-07-08 — wordt NIET meer ge-apply'd door
+# bootstrap-cluster.sh. De ArgoCD-instance draait nu cluster-scoped
+# (ARGOCD_CLUSTER_CONFIG_NAMESPACES in argocd-operator-subscription.yaml)
+# en krijgt de benodigde cluster-rechten van de operator zelf. Bewaard als
+# referentie: mocht ooit teruggeschakeld worden naar een smallere opzet
+# ("smaak 3": cluster-scoped met eigen minimale ClusterRole i.p.v. de
+# operator-defaults), dan is dit het startpunt. Op het live cluster mag een
+# eerder ge-apply'de versie blijven staan of opgeruimd worden
+# (oc delete clusterrole/clusterrolebinding argocd-namespace-creator).
+#
+# Oorspronkelijke uitleg:
 # Geeft de ArgoCD application-controller het recht om Namespace-objecten aan
 # te maken — zonder dit ontbrak `CreateNamespace=true` in de praktijk elke
-# keer stil: de argocd-operator geeft de controller-ServiceAccount alleen
-# per-namespace Role/RoleBindings (in namespaces die 'ie al beheert), nooit
-# een cluster-brede ClusterRoleBinding. Namespace is cluster-scoped, dus
+# keer stil: de argocd-operator geeft de controller-ServiceAccount (in
+# namespaced mode) alleen per-namespace Role/RoleBindings, nooit een
+# cluster-brede ClusterRoleBinding. Namespace is cluster-scoped, dus
 # zonder deze ClusterRole kon de controller er nooit één aanmaken (bevestigd
 # via `oc auth can-i create namespaces --as=system:serviceaccount:argocd:
 # argocd-argocd-application-controller` → "no", vóór dit bestand).
+# NB: dit loste het allow-list-kip-en-ei overigens aantoonbaar NIET op —
+# zie ../../docs/architecture.md "Historie".
 #
 # Bewust GEEN `delete`: namespace-verwijdering blijft altijd een bewuste,
 # handmatige actie — zie de 29 stale pnf-pr-*-namespaces die opgeruimd

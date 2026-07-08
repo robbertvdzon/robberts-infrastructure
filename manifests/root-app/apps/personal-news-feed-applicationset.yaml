@@ -79,14 +79,13 @@ spec:
         automated:
           prune: true
           selfHeal: true
-        # managedNamespaceMetadata + CreateNamespace=true kunnen een
-        # namespace NIET voor het eerst zelf aanmaken (kip-en-ei,
-        # geverifieerd 2026-07-08 — zie ../root-application.yaml voor de
-        # volledige uitleg). preview-ns-labeller (in personal-news-feed-
-        # by-claude-code/deploy/preview-ns-labeller/) doet dat werk nog
-        # steeds: maakt de pnf-pr-<N>-namespace aan + labelt 'm, waarna
-        # ArgoCD 'm mag overnemen. Deze instellingen hier zorgen alleen dat
-        # het label blijft staan zodra de namespace eenmaal bestaat.
+        # CreateNamespace=true maakt de pnf-pr-<N>-namespace zelf aan
+        # sinds de ArgoCD-instance cluster-scoped draait (2026-07-08, zie
+        # ../../cluster-bootstrap/argocd-operator-subscription.yaml —
+        # daarvóór kon dat niet en was preview-ns-labeller hiervoor
+        # verantwoordelijk). De labeller blijft draaien voor de rest van
+        # z'n werk: Neon-branch-URL in het secret patchen + backend-pod
+        # restarten per preview (KAN-55), en als vangnet voor labels.
         managedNamespaceMetadata:
           labels:
             argocd.argoproj.io/managed-by: argocd

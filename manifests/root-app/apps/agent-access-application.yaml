@@ -1,0 +1,34 @@
+# Read-only agent-toegang (claude-agent ServiceAccount + RBAC + non-expiring
+# token-Secret) — zie ../../agent-access/ en docs/access-and-credentials.md.
+#
+# Toegevoegd als 4e Application (2026-07-08, cluster-scoped-consolidatie):
+# was een losse `oc apply -k manifests/agent-access/`-stap. Sinds de ArgoCD-
+# instance cluster-scoped draait mag hij de Namespace + ClusterRoles hierin
+# zelf beheren, dus ook dit gaat nu via GitOps. Het TOKEN eruit ophalen en
+# er een kubeconfig van maken blijft handwerk (zie access-and-credentials.md).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent-access
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/robberts-infrastructure.git
+    targetRevision: main
+    path: manifests/agent-access
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agent-access
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

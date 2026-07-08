@@ -70,7 +70,11 @@ fi
 echo
 echo "[4/6] live MachineConfigs (diff-check)"
 mkdir -p "$OUT/machineconfigs-live"
-for mc in 50-local-storage-mount 99-master-strip-bad-search-domain; do
+# De lijst komt uit manifests/machineconfigs/ zelf — hardcoden ging eerder
+# mis (50-local-storage-mount bleef staan na verwijdering op 2026-07-08,
+# terwijl vervanger 51-external-hdd-mount nooit gecheckt werd).
+for f in "$REPO_ROOT/manifests/machineconfigs"/*.yaml; do
+  mc="$(basename "$f" .yaml)"
   if oc get machineconfig "$mc" -o yaml >/dev/null 2>&1; then
     oc get machineconfig "$mc" -o yaml > "$OUT/machineconfigs-live/$mc.yaml"
     committed="$REPO_ROOT/manifests/machineconfigs/$mc.yaml"
@@ -87,7 +91,7 @@ for mc in 50-local-storage-mount 99-master-strip-bad-search-domain; do
       echo "       WAARSCHUWING: $mc bestaat live maar niet in manifests/machineconfigs/"
     fi
   else
-    echo "       ontbreekt live: $mc"
+    echo "       WAARSCHUWING: $mc staat in manifests/machineconfigs/ maar ontbreekt live — nog niet ge-apply'd?"
   fi
 done
 

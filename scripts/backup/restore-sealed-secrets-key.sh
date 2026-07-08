@@ -5,8 +5,8 @@
 # ontsleuteld kunnen worden — je hoeft dan niks opnieuw te resealen.
 #
 # Timing is kritiek: dit moet direct NA het installeren van de Sealed Secrets
-# controller (stap 3 van personal-news-feed-by-claude-code/deploy/bootstrap.sh)
-# en VOORDAT je de rest van dat bootstrap-script laat verdergaan. Zodra de
+# controller (stap [3/7] van ../bootstrap/bootstrap-cluster.sh) en VOORDAT
+# ArgoCD de apps gaat syncen. Zodra de
 # controller draait zonder een bestaande key te vinden, genereert hij een
 # NIEUWE key — en dan is deze restore te laat (dan moet je alsnog alles
 # resealen, zie ../../docs/backup-and-restore.md).
@@ -42,8 +42,8 @@ oc rollout status -n kube-system deploy/sealed-secrets-controller --timeout=120s
 
 echo
 echo "[restore] klaar. Verifieer met:"
-echo "  kubeseal --fetch-cert  # moet hetzelfde cert teruggeven als deploy/cluster-cert.pem in de app-repo's"
+echo "  kubeseal --fetch-cert  # moet hetzelfde cert teruggeven als manifests/cluster-bootstrap/cluster-cert.pem in deze repo"
 echo
-echo "Als het cert AFWIJKT van deploy/cluster-cert.pem: er zijn meerdere keys"
+echo "Als het cert AFWIJKT van manifests/cluster-bootstrap/cluster-cert.pem: er zijn meerdere keys"
 echo "hersteld of de controller had al een key gegenereerd vóór deze restore."
 echo "Check: oc get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key"

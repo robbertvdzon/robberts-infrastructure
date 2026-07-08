@@ -5,9 +5,9 @@ resources:
   - rolebinding-scc.yaml
   - sealed-secret-credentials.yaml
   - deployment.yaml
-# namespace.yaml expres NIET hier: deze ArgoCD-instance draait "namespaced
-# mode" en mag geen cluster-scoped Namespace-object beheren ("cluster level
-# Namespace ... can not be managed when in namespaced mode" — gebleken tijdens
-# het live inschakelen van deze Application). Namespace aanmaken + labelen is
-# daarom een eenmalige handmatige prereq — zie
-# argocd-application.yaml.
+# namespace.yaml staat niet in resources: de Application maakt de namespace
+# zelf aan via CreateNamespace=true (werkt écht sinds de ArgoCD-instance
+# cluster-scoped draait, 2026-07-08 — daarvóór was dit een handmatige prereq
+# omdat namespaced mode geen Namespace-objecten mocht beheren: "cluster level
+# Namespace ... can not be managed when in namespaced mode"). Het bestand
+# blijft bestaan als documentatie van de labels.

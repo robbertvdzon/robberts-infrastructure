@@ -32,25 +32,24 @@ Manifests: `manifests/cluster-bootstrap/`. Volledig declaratief, `bootstrap-clus
 Kleine kwetsbaarheid: `installPlanApproval: Automatic` zonder gepinde `startingCSV` — operator-versie
 kan na reinstall licht afwijken (functioneel geen probleem).
 
-**Namespace-creator-RBAC (2026-07-08, `bootstrap-cluster.sh` stap 3):** de argocd-operator geeft de
-`argocd-argocd-application-controller`-ServiceAccount alleen per-namespace `Role`/`RoleBinding`'s (in
-namespaces die 'ie al beheert), nooit een cluster-brede `ClusterRoleBinding` — bevestigd met
-`oc auth can-i create namespaces --as=system:serviceaccount:argocd:argocd-argocd-application-controller`
-(gaf "no" vóór de fix). Nu gefixt met een losse, minimale `ClusterRole` (alleen
-`create`/`get`/`list`/`watch`/`update`/`patch` op `namespaces`, bewust **geen** `delete`) —
-zie `manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml`.
+**Cluster-scoped instance (sinds 2026-07-08):** de Subscription zet
+`ARGOCD_CLUSTER_CONFIG_NAMESPACES=argocd` (operator-env), waardoor de instance cluster-scoped
+draait: `CreateNamespace=true` maakt namespaces écht zelf aan en ArgoCD beheert ook cluster-scoped
+objecten (Namespaces, ClusterRoles) uit git. Trade-off (controller krijgt praktisch cluster-admin
+van de operator) is een bewuste keuze — zie de uitleg in
+`manifests/cluster-bootstrap/argocd-operator-subscription.yaml`.
 
-**Deze RBAC-fix lost het "namespaced mode"-probleem NIET volledig op** — met een echte test-PR
-(2026-07-08) bleek een tweede, onafhankelijke laag: secret `argocd-default-cluster-config` (namespace
-`argocd`) houdt een veld `namespaces` bij — een expliciete, kommagescheiden allow-list van namespaces
-die deze ArgoCD-installatie mag beheren. Die lijst vult zichzelf pas ná het zien van een namespace
-mét het label `argocd.argoproj.io/managed-by=argocd` (geverifieerd: na handmatig `oc create namespace`
-+ `oc label` verscheen de namespace binnen ~10s vanzelf op de allow-list, en synct de Application
-daarna probleemloos). **`CreateNamespace=true` kan dus nooit een namespace voor het eerst zelf
-aanmaken** — er is altijd een namespace-aanmaak+label-stap buiten ArgoCD nodig (bootstrap.sh,
-`namespace.yaml`, of preview-ns-labeller). De namespace-creator-RBAC hierboven blijft wel nuttig
-zodra een namespace al bestaat (voor de `update`/`patch` die `managedNamespaceMetadata` gebruikt om
-labels te blijven zetten).
+**Historie — het "namespaced mode"-probleem (vóór 2026-07-08):** in namespaced mode gaf de operator
+de controller-SA alleen per-namespace `Role`/`RoleBinding`'s. Een losse namespace-creator-`ClusterRole`
+(`manifests/cluster-bootstrap/argocd-namespace-creator-rbac.yaml`, nu obsoleet/bewaard als referentie)
+gaf raw-RBAC-recht op namespaces, maar loste het probleem aantoonbaar niet op: met een echte test-PR
+bleek een tweede, onafhankelijke laag — secret `argocd-default-cluster-config` (namespace `argocd`)
+hield een veld `namespaces` bij, een expliciete allow-list die zichzelf pas vulde ná het zien van een
+al-bestaande namespace mét het label `argocd.argoproj.io/managed-by=argocd` (na handmatig
+`oc create namespace` + `oc label` verscheen de namespace binnen ~10s op de lijst). In die mode kon
+`CreateNamespace=true` dus nooit een namespace voor het eerst zelf aanmaken en was er altijd een
+stap buiten ArgoCD nodig (bootstrap.sh, `namespace.yaml`, of preview-ns-labeller). Cluster-scoped
+mode heft die allow-list op.
 
 ### 2. Sealed Secrets — grootste risico in de hele stack
 Controller-install zelf is gepind (`v0.27.0`, declaratief). Het probleem is de **private key**: elk
