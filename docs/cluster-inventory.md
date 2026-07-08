@@ -2,8 +2,9 @@
 
 Volledige opname van wat er op dit moment op de OpenShift-cluster staat, per onderdeel: is het
 nodig, en komt het bij een reinstall (volgens [disaster-recovery-playbook.md](disaster-recovery-playbook.md))
-vanzelf weer correct terug. Gemaakt na het verwijderen van YouTrack en 29 stale
-personal-news-feed-preview-namespaces — dit is dus de "schone" staat.
+vanzelf weer correct terug. Gemaakt na het verwijderen van YouTrack, 29 stale
+personal-news-feed-preview-namespaces, en de app-of-apps-consolidatie (zie
+[`manifests/root-app/`](../manifests/root-app/)) — dit is dus de "schone" staat.
 
 ## Samenvatting
 
@@ -14,9 +15,10 @@ personal-news-feed-preview-namespaces — dit is dus de "schone" staat.
 | local-path-provisioner + `local-path-storage` namespace | Ja | Ja — `bootstrap-cluster.sh` |
 | Reflector | Ja | Ja — `bootstrap-cluster.sh` |
 | MachineConfigs (4 custom) | Ja | Ja — `apply-machineconfigs.sh` |
-| `personal-news-feed` Application + namespace | Ja | Grotendeels — eigen `deploy/bootstrap.sh` |
-| `smb-timemachine` Application + namespace | Ja | Gedeeltelijk — 2 losse `oc apply`-commando's, niet gescript |
-| `softwarefactory-dashboard` Application | Ja | Gedeeltelijk — 1 los `oc apply`-commando |
+| `root-apps` (app-of-apps) | Ja | 1 `oc apply` — beheert de 3 apps hieronder zelf |
+| `personal-news-feed` (namespace + secrets + labeller) | Ja | Grotendeels — eigen `deploy/bootstrap.sh` (Application-pointer zelf komt via root-apps) |
+| `smb-timemachine` (namespace) | Ja | Gedeeltelijk — 1 los `oc apply`-commando (Namespace, cluster-scoped, kan ArgoCD niet) |
+| `softwarefactory-dashboard` | Ja | Ja — volledig via root-apps (eigen `CreateNamespace=true`) |
 | `agent-access` (read-only ServiceAccount) | Ja | Gedeeltelijk — apply is gescript, token-generatie niet |
 | PVC `personal-news-feed/backend-data` | Ja | Ja (StorageClass-provisioned, geen data-backup nodig — check met Robbert of de inhoud vervangbaar is) |
 | ~~YouTrack~~ | **Nee — verwijderd 2026-07-08** | n.v.t. |
@@ -66,12 +68,20 @@ Alle 4 in git (`manifests/machineconfigs/`), toegepast via `apply-machineconfigs
 `oc apply` per bestand — pakt automatisch alle `.yaml`-bestanden in de map).
 
 ### 6. Apps (ArgoCD Applications, 3 stuks — YouTrack was de 4e, nu weg)
-- **personal-news-feed** — eigen `deploy/bootstrap.sh`, checkt zelf of de cluster-brede bootstrap
-  al gedraaid is. Bevat ook de PR-preview-ApplicationSet (zie punt 8 hieronder voor een bekend gat).
-- **smb-timemachine** — namespace + Application worden los ge-`apply`'d (2 commando's, opgeschreven
-  in playbook stap 7, niet in een script gegoten).
-- **softwarefactory-dashboard** — 1 los `oc apply`-commando (playbook stap 4), leeft in de
-  `software-factory`-repo.
+Sinds 2026-07-08 via **app-of-apps**: [`manifests/root-app/root-application.yaml`](../manifests/root-app/root-application.yaml)
+is de enige Application die je met de hand `apply`'t; die beheert de 3 child-Applications in
+[`manifests/root-app/apps/`](../manifests/root-app/apps/) zelf (self-heal + prune aan). De
+Application-*pointer* van elke app staat dus op één plek, maar de daadwerkelijke deploy-manifesten
+(met CI-gebumpte image-tags) blijven gewoon in de eigen app-repo — geen wijziging aan hoe
+personal-news-feed/software-factory zelf deployen.
+
+- **personal-news-feed** — namespace/secrets/preview-ns-labeller/ApplicationSet nog steeds via eigen
+  `deploy/bootstrap.sh` (checkt zelf of de cluster-brede bootstrap al gedraaid is). Bevat ook de
+  PR-preview-ApplicationSet (zie punt 8 hieronder voor een bekend gat).
+- **smb-timemachine** — namespace blijft een losse `oc apply` (cluster-scoped, kan ArgoCD niet), de
+  Application zelf komt nu via root-apps.
+- **softwarefactory-dashboard** — volledig via root-apps, geen losse stap meer nodig (eigen
+  `CreateNamespace=true` werkt al langer probleemloos voor deze specifieke Application).
 
 ### 7. agent-access (read-only ServiceAccount voor Claude Code/agents/Telegram-assistent)
 `oc apply -k manifests/agent-access/` is volledig declaratief/idempotent. Maar de token +

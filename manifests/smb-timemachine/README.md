@@ -58,17 +58,21 @@ nodig.
    failed: Operation not permitted` en werkt Bonjour-discovery niet.
 5. Permissie-fix hierboven (initContainer).
 
-## Installeren — via ArgoCD (4e Application)
+## Installeren — via ArgoCD (onderdeel van de root-app)
 
 Alles hier (namespace, ServiceAccount, RoleBinding voor de privileged-SCC,
-SealedSecret, Deployment) staat nu in git en wordt door ArgoCD gesynct —
-**niet** meer los `oc apply -k`'d. De enige stap die nog met het admin-
-account moet (ArgoCD kan zichzelf geen Application geven):
+SealedSecret, Deployment) staat in git en wordt door ArgoCD gesynct. De
+Application-pointer zelf staat sinds de app-of-apps-consolidatie (2026-07-08)
+niet meer hier, maar in
+[`../root-app/apps/smb-timemachine-application.yaml`](../root-app/apps/smb-timemachine-application.yaml)
+— zie [`../root-app/root-application.yaml`](../root-app/root-application.yaml)
+voor hoe je die (samen met de andere 2 apps) in één keer installeert.
 
+Eenmalige cluster-scoped prereq (kan ArgoCD niet zelf, "namespaced mode"):
 ```bash
 export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig   # break-glass admin, zie
                                                     # ../../docs/access-and-credentials.md
-oc apply -f manifests/smb-timemachine/argocd-application.yaml
+oc apply -f manifests/smb-timemachine/namespace.yaml
 ```
 
 Daarna volledig autonoom (self-heal aan, prune aan). Wachtwoord wijzigen: zie

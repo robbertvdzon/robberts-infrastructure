@@ -33,7 +33,8 @@ docs/
 manifests/
   machineconfigs/                   — de 4 node-level configs die nu alleen los op het cluster stonden
   cluster-bootstrap/                — ArgoCD-operator-Subscription + ArgoCD CR (cluster-breed, verhuisd uit personal-news-feed)
-  smb-timemachine/                  — Samba-share op de externe USB-HDD voor Time Machine-backups (getest, werkend, 3e ArgoCD Application)
+  root-app/                         — app-of-apps: 1 root-Application beheert de 3 app-Applications (2026-07-08)
+  smb-timemachine/                  — Samba-share op de externe USB-HDD voor Time Machine-backups (getest, werkend)
   agent-access/                     — read-only ServiceAccount voor Claude Code/agents/assistent
 
 scripts/

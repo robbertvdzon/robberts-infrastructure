@@ -1,0 +1,50 @@
+# App-of-apps root Application — de ENIGE ArgoCD-Application die je na een
+# reinstall nog met de hand hoeft aan te maken. Deze beheert op zijn beurt de
+# 3 losse app-Applications in apps/ (elk wijst terug naar de eigen repo van
+# die app — personal-news-feed en software-factory blijven dus gewoon los
+# beheerd/CI-gebumpt in hun eigen repo, alleen de ArgoCD-Application-pointer
+# zelf staat nu hier, op één plek).
+#
+# Consolideert wat vroeger 3 losse `oc apply -f .../argocd-application.yaml`-
+# commando's waren (playbook stap 4/7) tot 1 stap. Zie
+# ../../docs/disaster-recovery-playbook.md.
+#
+# LET OP — nog steeds nodig als losse, handmatige prereqs vóór je dit apply't
+# (dit zijn cluster-scoped/kip-en-ei-stappen die ArgoCD zelf niet kan doen):
+#   1. ArgoCD/Sealed Secrets/storage/Reflector via bootstrap-cluster.sh
+#   2. Namespace `personal-news-feed` (via personal-news-feed/deploy/bootstrap.sh)
+#   3. Namespace `smb-timemachine` (via manifests/smb-timemachine/namespace.yaml)
+#   (softwarefactory-dashboard se namespace ontstaat wel automatisch via
+#   CreateNamespace=true in de eigen Application — zie apps/softwarefactory-dashboard-application.yaml)
+#
+# Apply met:
+#   oc apply -f manifests/root-app/root-application.yaml
+#
+# Daarna volledig autonoom: nieuwe/gewijzigde apps in apps/ worden vanzelf
+# aangemaakt/bijgewerkt/verwijderd (prune + selfHeal aan) zodra je commit.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-apps
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/robberts-infrastructure.git
+    targetRevision: main
+    path: manifests/root-app/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

@@ -1,0 +1,36 @@
+# Verhuisd hierheen vanuit personal-news-feed-by-claude-code/deploy/argocd-application.yaml
+# (2026-07-08, app-of-apps-consolidatie) — inhoud ongewijzigd, alleen de
+# locatie van deze pointer. De daadwerkelijke deploy-manifesten (met
+# CI-gebumpte image-tags) blijven gewoon in de personal-news-feed-repo zelf,
+# zie spec.source hieronder.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: personal-news-feed
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/personal-news-feed-by-claude-code.git
+    targetRevision: main
+    path: deploy/overlays/openshift
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: personal-news-feed
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: []
+    # CreateNamespace=true verwijderd: onze ArgoCD draait namespaced en
+    # mag geen Namespace-resources aanmaken. bootstrap.sh maakt 'm.
+    # ServerSideApply=true verwijderd: triggerde ComparisonError op
+    # OpenShift Route-CRD ("unable to resolve parseableType").
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

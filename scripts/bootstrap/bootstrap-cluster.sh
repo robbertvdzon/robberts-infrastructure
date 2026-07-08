@@ -221,7 +221,7 @@ oc rollout status -n "$ARGOCD_NS" deploy/argocd-applicationset-controller --time
 
 echo
 echo "[bootstrap-cluster] klaar. ArgoCD, Sealed Secrets, storage en Reflector staan."
-echo "Volgende stap: de app-specifieke bootstrap per app, bv.:"
+echo "Volgende stap: app-specifieke namespace-prereqs, dan de root-Application:"
 echo "  cd ~/git/personal-news-feed-by-claude-code && ./deploy/bootstrap.sh"
-echo "  cd ~/git/softwarefactory && oc apply -n argocd -f deploy/argocd-application.yaml"
-echo "  cd ~/git/robberts-infrastructure && oc apply -f manifests/smb-timemachine/namespace.yaml -f manifests/smb-timemachine/argocd-application.yaml"
+echo "  cd ~/git/robberts-infrastructure && oc apply -f manifests/smb-timemachine/namespace.yaml"
+echo "  oc apply -f manifests/root-app/root-application.yaml   # beheert personal-news-feed, smb-timemachine, softwarefactory-dashboard"

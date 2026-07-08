@@ -1,0 +1,32 @@
+# Verhuisd hierheen vanuit software-factory/deploy/argocd-application.yaml
+# (2026-07-08, app-of-apps-consolidatie) — inhoud ongewijzigd. De
+# daadwerkelijke deploy-manifesten (met CI-gebumpte image-tags) blijven
+# gewoon in de software-factory-repo zelf, zie spec.source hieronder.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: softwarefactory-dashboard
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/software-factory.git
+    targetRevision: main
+    path: deploy/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: software-factory
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

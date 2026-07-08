@@ -133,13 +133,12 @@ cd ~/git/personal-news-feed-by-claude-code
 ./deploy/bootstrap.sh
 ```
 
-Overige 2 Applications:
+Cluster-scoped prereq voor smb-timemachine (ArgoCD mag geen Namespace zelf
+beheren), en dan de root-Application die alle 3 apps aanmaakt/beheert:
 ```bash
+cd ~/git/robberts-infrastructure
 oc apply -f manifests/smb-timemachine/namespace.yaml
-oc apply -f manifests/smb-timemachine/argocd-application.yaml
-
-cd ~/git/softwarefactory
-oc apply -n argocd -f deploy/argocd-application.yaml
+oc apply -f manifests/root-app/root-application.yaml
 ```
 
 Read-only agent-toegang (voor Claude Code/tester-agents/Telegram-assistent):

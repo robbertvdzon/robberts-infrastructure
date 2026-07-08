@@ -127,23 +127,35 @@ idempotent, je kan het na de key-restore gewoon nog een keer draaien):
 Draai daarna `./scripts/bootstrap/bootstrap-cluster.sh` nogmaals (idempotent)
 om de resterende stappen (storage, Reflector) af te maken.
 
-## 4. Apps
+## 4. Apps — één root-Application voor alle 3
 
-Elke app heeft nu een eigen, kortere bootstrap-stap (checkt zelf of stap 3
-al gedraaid is):
+Sinds de app-of-apps-consolidatie (2026-07-08) hoef je nog maar **één**
+ArgoCD-Application met de hand aan te maken; die beheert de andere 2 zelf
+(zie [`manifests/root-app/`](../manifests/root-app/)). personal-news-feed
+en softwarefactory-dashboard blijven wel gewoon in hun eigen repo
+CI-gebumpt — alleen de Application-*pointer* staat nu hier op één plek.
+
+Twee cluster-scoped prereqs kan ArgoCD nog steeds niet zelf ("namespaced
+mode" mag geen Namespace-objecten beheren):
 
 ```bash
 cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh
+./deploy/bootstrap.sh   # maakt o.a. de namespace + app-secrets + preview-ns-labeller
+                         # (de Application-apply die dit script ook doet is nu
+                         # overbodig-maar-onschadelijk — root-app beheert 'm al)
+
+cd ~/git/robberts-infrastructure
+oc apply -f manifests/smb-timemachine/namespace.yaml
 ```
 
-Het softwarefactory-dashboard heeft geen eigen bootstrap-script — die
-Application moet je los `apply`'en:
+Daarna de root-Application zelf:
 
 ```bash
-cd ~/git/softwarefactory
-oc apply -n argocd -f deploy/argocd-application.yaml
+oc apply -f manifests/root-app/root-application.yaml
 ```
+
+Dit maakt/adopteert meteen alle 3 Applications (`personal-news-feed`,
+`smb-timemachine`, `softwarefactory-dashboard`) — self-heal + prune aan.
 
 ## 5. Verifiëren dat de secrets goed zijn aangekomen
 
@@ -169,18 +181,7 @@ Genereer daarna een nieuw token + kubeconfig (zie
 `SF_KUBECONFIG` in `software-factory/secrets.env` — dit gebruik je vanaf nu
 voor al het niet-menselijke `oc`-gebruik, **niet** het admin-kubeconfig.
 
-## 7. SMB / Time Machine share
-
-Vierde ArgoCD Application, vanuit deze repo zelf (niet vanuit een app-repo):
-
-```bash
-oc apply -f manifests/smb-timemachine/argocd-application.yaml
-```
-
-Verder volledig via git/ArgoCD — zie
-[../manifests/smb-timemachine/README.md](../manifests/smb-timemachine/README.md).
-
-## 8. Externe, niet-gescripte stukken
+## 7. Externe, niet-gescripte stukken
 
 Deze zijn NIET cluster-afhankelijk en horen dus al te kloppen — controleer
 alleen dat ze niet per ongeluk gewijzigd zijn. Zie
@@ -195,7 +196,7 @@ alleen dat ze niet per ongeluk gewijzigd zijn. Zie
       `deploy/README.md`).
 - [ ] `/etc/hosts` op je MacBook, als Chrome/Safari de console niet laadt.
 
-## 9. Eindverificatie
+## 8. Eindverificatie
 
 ```bash
 oc get application -n argocd

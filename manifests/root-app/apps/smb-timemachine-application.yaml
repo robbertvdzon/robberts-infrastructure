@@ -1,0 +1,33 @@
+# Verhuisd hierheen vanuit ../../smb-timemachine/argocd-application.yaml
+# (2026-07-08, app-of-apps-consolidatie) — inhoud ongewijzigd.
+#
+# Cluster-scoped prerequisite (eenmalig, met de hand — kan ArgoCD niet: deze
+# ArgoCD-instance draait "namespaced mode" en mag geen Namespace-object zelf
+# beheren):
+#   oc apply -f manifests/smb-timemachine/namespace.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smb-timemachine
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/robberts-infrastructure.git
+    targetRevision: main
+    path: manifests/smb-timemachine
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: smb-timemachine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
