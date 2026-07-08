@@ -64,20 +64,23 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
   in **deze repo** — dat script installeert ook Sealed Secrets, local-path-provisioner
   en Reflector. Verhuisd hierheen vanuit `personal-news-feed-by-claude-code/deploy/bootstrap.sh`
   (2026-07-07): dat was cluster-brede bootstrap die toevallig in de eerste
-  app-repo was beland, niet iets specifiek voor die app — youtrack/dashboard/
+  app-repo was beland, niet iets specifiek voor die app — dashboard/
   smb-timemachine leunen er net zo goed op. Elke app heeft daarna nog een
   eigen, kortere app-specifieke bootstrap-stap (namespace, app-secrets, de
   Application zelf) — zie bv. `personal-news-feed-by-claude-code/deploy/bootstrap.sh`.
 - Geen app-of-apps-patroon: elke app heeft een eigen `Application`-resource die **los**
-  `oc apply`'d wordt (geen root-Application die ze allemaal aanmaakt). Vier apps:
+  `oc apply`'d wordt (geen root-Application die ze allemaal aanmaakt). Drie apps:
   - `personal-news-feed` (uit `personal-news-feed-by-claude-code` repo)
-  - `youtrack` (uit **deze** repo, `manifests/youtrack`)
   - `softwarefactory-dashboard` (uit `software-factory` repo, `deploy/base`)
   - `smb-timemachine` (uit **deze** repo, `manifests/smb-timemachine`)
 
+  (YouTrack was hier eerder ook een vierde app — verwijderd 2026-07-08, de
+  Software Factory gebruikt sinds de Postgres-tracker-migratie geen YouTrack
+  meer.)
+
   Robbert wil op termijn alle infra hier hebben, ook app-specifieke deploy-
-  manifesten (niet alleen de cluster-brede lijmlaag). YouTrack is daarvan de
-  eerste (2026-07-07): volledig statisch (geen CI-image-bump, geen preview-
+  manifesten (niet alleen de cluster-brede lijmlaag). SMB/Time-Machine is
+  daarvan een voorbeeld: volledig statisch (geen CI-image-bump, geen preview-
   koppeling), dus zonder complicaties te verplaatsen. `personal-news-feed`
   en `softwarefactory-dashboard` blijven voorlopig in hun eigen repo — hun
   CI bumpt de image-tag in dezelfde commit als de build, en personal-news-

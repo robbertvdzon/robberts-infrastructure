@@ -6,8 +6,8 @@
 # Verhuisd hierheen vanuit personal-news-feed-by-claude-code/deploy/bootstrap.sh
 # (2026-07-07): dat script deed dit én PNF-specifieke dingen (namespace,
 # preview-ns-labeller, de Application zelf) door elkaar. Dit hier is precies
-# het deel waar YouTrack, het dashboard, de SMB-share én toekomstige apps
-# allemaal op leunen — hoort dus in de "lijmlaag"-repo, niet in één app-repo.
+# het deel waar het dashboard, de SMB-share én toekomstige apps allemaal op
+# leunen — hoort dus in de "lijmlaag"-repo, niet in één app-repo.
 #
 #    1. argocd-operator subscriben via OperatorHub
 #    2. ArgoCD CR apply'en (applicationSet enabled, server-route)
@@ -21,8 +21,8 @@
 # Daarna PER APP nog een eigen (veel kortere) bootstrap-stap nodig:
 # namespace aanmaken + labelen, app-specifieke secrets, de ArgoCD Application
 # zelf. Zie bv. personal-news-feed-by-claude-code/deploy/bootstrap.sh, of voor
-# youtrack/dashboard/smb-timemachine gewoon `oc apply -f deploy/*-application.yaml`
-# (zie ../../docs/disaster-recovery-playbook.md stap 4/6/7).
+# dashboard/smb-timemachine gewoon `oc apply -f deploy/*-application.yaml`
+# (zie ../../docs/disaster-recovery-playbook.md stap 4/6).
 #
 # Aannames:
 #   - `oc` is geïnstalleerd en ingelogd op het juiste cluster (`oc whoami`).
@@ -223,5 +223,5 @@ echo
 echo "[bootstrap-cluster] klaar. ArgoCD, Sealed Secrets, storage en Reflector staan."
 echo "Volgende stap: de app-specifieke bootstrap per app, bv.:"
 echo "  cd ~/git/personal-news-feed-by-claude-code && ./deploy/bootstrap.sh"
-echo "  cd ~/git/softwarefactory && oc apply -n argocd -f deploy/argocd-application.yaml -f deploy/youtrack-application.yaml"
+echo "  cd ~/git/softwarefactory && oc apply -n argocd -f deploy/argocd-application.yaml"
 echo "  cd ~/git/robberts-infrastructure && oc apply -f manifests/smb-timemachine/namespace.yaml -f manifests/smb-timemachine/argocd-application.yaml"

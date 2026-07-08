@@ -9,5 +9,5 @@ resources:
 # mode" en mag geen cluster-scoped Namespace-object beheren ("cluster level
 # Namespace ... can not be managed when in namespaced mode" — gebleken tijdens
 # het live inschakelen van deze Application). Namespace aanmaken + labelen is
-# daarom, net als bij youtrack, een eenmalige handmatige prereq — zie
+# daarom een eenmalige handmatige prereq — zie
 # argocd-application.yaml.

@@ -8,17 +8,17 @@ staat in de andere docs in deze map — hier alleen de kortste route.
 **Je originele SSD wordt niet aangeraakt.** Hij ligt aan de kant terwijl je
 test; niks van wat hieronder gebeurt kan 'm beschadigen.
 
-**Tijdens de test is de "echte" YouTrack/dashboard/news-feed niet bereikbaar**
+**Tijdens de test is de "echte" dashboard/news-feed niet bereikbaar**
 (zelfde fysieke machine — DNS/router/Cloudflare wijzen naar hetzelfde IP,
 dus je test-cluster beantwoordt tijdelijk dezelfde hostnamen). Dat is
 verwacht en stopt zodra je de oude SSD terugzet.
 
-**De 4TB-schijf (`/dev/sdb`)**: laat 'm gewoon aangesloten. De install raakt
-alleen `/dev/sda` (de SSD/HDD) aan; `/dev/sdb` wordt alleen gemount, nooit
-geformatteerd. Als je liever nul risico wil voor de echte Time Machine-data
-erop: koppel 'm fysiek los vóór je opstart — dan faalt alleen de
-`50-local-storage-mount`-stap onschuldig en sla je de SMB-verificatie
-onderaan over.
+**De externe USB-HDD (Time Machine-share)**: laat 'm gewoon aangesloten. De
+install raakt alleen de interne OS-schijf aan; de externe HDD wordt alleen
+gemount (via `51-external-hdd-mount`), nooit geformatteerd. Als je liever nul
+risico wil voor de echte Time Machine-data erop: koppel 'm fysiek los vóór je
+opstart — dan faalt alleen de mount-stap onschuldig (heeft `nofail`, blokkeert
+de boot niet) en sla je de SMB-verificatie onderaan over.
 
 ---
 
@@ -109,7 +109,7 @@ Eén blok, met precies één bewuste pauze (sealed-secrets-key restoren) erin:
 
 ```bash
 cd ~/git/robberts-infrastructure
-./scripts/machineconfig/apply-machineconfigs.sh   # mount 4TB-schijf + DNS-fix, node reboot
+./scripts/machineconfig/apply-machineconfigs.sh   # mount externe HDD + DNS-fix, node reboot
 oc get mcp master -w                              # wacht tot UPDATED=True, dan Ctrl-C
 ```
 
@@ -133,9 +133,8 @@ cd ~/git/personal-news-feed-by-claude-code
 ./deploy/bootstrap.sh
 ```
 
-Overige 3 Applications:
+Overige 2 Applications:
 ```bash
-oc apply -f manifests/youtrack/argocd-application.yaml
 oc apply -f manifests/smb-timemachine/namespace.yaml
 oc apply -f manifests/smb-timemachine/argocd-application.yaml
 
@@ -156,15 +155,15 @@ Token + kubeconfig opnieuw genereren: zie
 
 ```bash
 oc get application -n argocd
-# verwacht: alle 4 Synced + Healthy (personal-news-feed, youtrack,
+# verwacht: alle 3 Synced + Healthy (personal-news-feed,
 # softwarefactory-dashboard, smb-timemachine)
 
 oc get pods -A | grep -v Running
 # verwacht: leeg (op Completed jobs na)
 ```
 
-Handmatig: YouTrack/dashboard/news-feed openen via hun publieke URL's, en
-(als `/dev/sdb` aangesloten was) de SMB-share testen — zie
+Handmatig: dashboard/news-feed openen via hun publieke URL's, en (als de
+externe HDD aangesloten was) de SMB-share testen — zie
 [smb-timemachine-test-procedure.md](smb-timemachine-test-procedure.md) stap 1
 voor de snelle CLI-test.
 

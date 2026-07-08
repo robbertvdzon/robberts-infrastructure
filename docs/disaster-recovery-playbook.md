@@ -137,14 +137,10 @@ cd ~/git/personal-news-feed-by-claude-code
 ./deploy/bootstrap.sh
 ```
 
-YouTrack en het softwarefactory-dashboard hebben geen eigen bootstrap-script
-— die Applications moet je los `apply`'en. YouTrack's cluster-scoped
-prerequisites (namespace + SCC's) staan als commentaar bovenaan
-[`manifests/youtrack/argocd-application.yaml`](../manifests/youtrack/argocd-application.yaml):
+Het softwarefactory-dashboard heeft geen eigen bootstrap-script — die
+Application moet je los `apply`'en:
 
 ```bash
-oc apply -f manifests/youtrack/argocd-application.yaml
-
 cd ~/git/softwarefactory
 oc apply -n argocd -f deploy/argocd-application.yaml
 ```
@@ -211,5 +207,5 @@ oc get pods -A | grep -v Running
 curl -sk https://console-openshift-console.apps.sno.lab.vdzon.com | head -1
 ```
 
-En handmatig: YouTrack, softwarefactory-dashboard en de news-feed openen via
-hun publieke URLs, en de SMB-share zichtbaar op het thuisnetwerk.
+En handmatig: softwarefactory-dashboard en de news-feed openen via hun
+publieke URLs, en de SMB-share zichtbaar op het thuisnetwerk.
