@@ -95,13 +95,17 @@ Application-*pointer* van elke app staat dus op één plek, maar de daadwerkelij
 (met CI-gebumpte image-tags) blijven gewoon in de eigen app-repo — geen wijziging aan hoe
 personal-news-feed/software-factory zelf deployen.
 
-- **personal-news-feed** — namespace/secrets/preview-ns-labeller/ApplicationSet nog steeds via eigen
-  `deploy/bootstrap.sh` (checkt zelf of de cluster-brede bootstrap al gedraaid is). Bevat ook de
-  PR-preview-ApplicationSet (zie punt 8 hieronder voor een bekend gat).
+- **personal-news-feed** — namespace + preview-ns-labeller-RBAC nog steeds via eigen
+  `deploy/bootstrap.sh` (checkt zelf of de cluster-brede bootstrap al gedraaid is; nog maar 2
+  stappen sinds 2026-07-08, zie `deploy/README.md`). De PR-preview-ApplicationSet, de
+  `github-pr-token`-SealedSecret en preview-ns-labeller's Deployment zijn verhuisd naar
+  `manifests/root-app/apps/` — puur GitOps, geen losse `oc apply`/afgeleide-secret-stap meer
+  (zie punt 8 hieronder voor het bekende, nog niet gefixte namespace-cleanup-gat).
 - **smb-timemachine** — namespace blijft een losse `oc apply` (cluster-scoped, kan ArgoCD niet), de
   Application zelf komt nu via root-apps.
-- **softwarefactory-dashboard** — volledig via root-apps, geen losse stap meer nodig (eigen
-  `CreateNamespace=true` werkt al langer probleemloos voor deze specifieke Application).
+- **softwarefactory-dashboard** — volledig via root-apps; de namespace bestond hier al vóór de
+  eerste sync (dus nooit het kip-en-ei-probleem geraakt — niet omdat `CreateNamespace=true` het
+  zelf oploste, zie §1 hierboven).
 
 ### 7. agent-access (read-only ServiceAccount voor Claude Code/agents/Telegram-assistent)
 `oc apply -k manifests/agent-access/` is volledig declaratief/idempotent. Maar de token +

@@ -126,7 +126,7 @@ nadat het script helemaal klaar is — maakt niet uit, hieronder werkt sowieso):
 ```
 
 Daarna de app-specifieke bootstrap van personal-news-feed (checkt zelf of
-het cluster-brede deel hierboven al staat; maakt de namespace + secrets +
+het cluster-brede deel hierboven al staat; maakt de namespace +
 preview-ns-labeller-RBAC — dit blijft nodig, `CreateNamespace=true` kan een
 namespace niet voor het eerst zelf aanmaken op deze ArgoCD-installatie,
 zie [architecture.md](architecture.md)):

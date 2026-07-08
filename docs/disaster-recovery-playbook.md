@@ -127,13 +127,15 @@ idempotent, je kan het na de key-restore gewoon nog een keer draaien):
 Draai daarna `./scripts/bootstrap/bootstrap-cluster.sh` nogmaals (idempotent)
 om de resterende stappen (storage, Reflector) af te maken.
 
-## 4. Apps — één root-Application voor alle 3
+## 4. Apps — één root-Application voor alle 3 (+ ApplicationSet + labeller + token)
 
 Sinds de app-of-apps-consolidatie (2026-07-08) hoef je nog maar **één**
-ArgoCD-Application met de hand aan te maken; die beheert de andere 2 zelf
-(zie [`manifests/root-app/`](../manifests/root-app/)). personal-news-feed
-en softwarefactory-dashboard blijven wel gewoon in hun eigen repo
-CI-gebumpt — alleen de Application-*pointer* staat nu hier op één plek.
+ArgoCD-Application met de hand aan te maken; die beheert de rest zelf (zie
+[`manifests/root-app/`](../manifests/root-app/) — 3 app-Applications, de
+PR-preview-ApplicationSet, de `github-pr-token`-SealedSecret, en
+preview-ns-labeller's Deployment). personal-news-feed en
+softwarefactory-dashboard blijven wel gewoon in hun eigen repo CI-gebumpt —
+alleen deze pointers/resources staan nu hier op één plek.
 
 **Belangrijk — namespaces moeten hoe dan ook eerst met de hand/script
 aangemaakt EN gelabeld worden.** `CreateNamespace=true` alleen is niet
@@ -148,13 +150,16 @@ managed" tot de namespace handmatig aangemaakt+gelabeld was, waarna de
 allow-list zich binnen enkele seconden vanzelf bijwerkte). De
 namespace-creator-RBAC (stap 3 hierboven) is dus wél nodig zodra een
 namespace al bestaat (voor de labels/updates van `managedNamespaceMetadata`),
-maar lost dit kip-en-ei-probleem niet op.
+maar lost dit kip-en-ei-probleem niet op. Om dezelfde reden mag ArgoCD ook
+geen `ClusterRole`/`ClusterRoleBinding` aanmaken — preview-ns-labeller's RBAC
+blijft dus ook een losse stap (bewust niet gefixt, zou ArgoCD praktisch
+rechten-op-alles kunnen geven).
 
-Dus altijd eerst dit (namespace-aanmaak, blijft verplicht):
+Dus altijd eerst dit (namespace-aanmaak + labeller-RBAC, blijft verplicht):
 
 ```bash
 cd ~/git/personal-news-feed-by-claude-code
-./deploy/bootstrap.sh   # maakt o.a. de namespace + app-secrets + preview-ns-labeller-RBAC
+./deploy/bootstrap.sh   # namespace + preview-ns-labeller-RBAC (2 stappen, zie deploy/README.md)
 
 cd ~/git/robberts-infrastructure
 oc apply -f manifests/smb-timemachine/namespace.yaml
@@ -167,11 +172,9 @@ oc apply -f manifests/root-app/root-application.yaml
 ```
 
 Dit maakt/adopteert alle 3 Applications (`personal-news-feed`,
-`smb-timemachine`, `softwarefactory-dashboard`) — self-heal + prune aan.
-
-(`bootstrap.sh` doet sowieso nog steeds app-secrets + preview-ns-labeller +
-de ApplicationSet, dus die blijft je altijd draaien — alleen de
-namespace-aanmaak erin is nu overbodig-maar-onschadelijk dubbelop.)
+`smb-timemachine`, `softwarefactory-dashboard`), de PR-preview-ApplicationSet,
+de `github-pr-token`-SealedSecret, en preview-ns-labeller's Deployment —
+self-heal + prune aan.
 
 ## 5. Verifiëren dat de secrets goed zijn aangekomen
 

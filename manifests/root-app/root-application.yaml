@@ -1,27 +1,42 @@
 # App-of-apps root Application — de ENIGE ArgoCD-Application die je na een
-# reinstall nog met de hand hoeft aan te maken. Deze beheert op zijn beurt de
-# 3 losse app-Applications in apps/ (elk wijst terug naar de eigen repo van
-# die app — personal-news-feed en software-factory blijven dus gewoon los
-# beheerd/CI-gebumpt in hun eigen repo, alleen de ArgoCD-Application-pointer
-# zelf staat nu hier, op één plek).
+# reinstall nog met de hand hoeft aan te maken. Deze beheert op zijn beurt
+# alles in apps/:
+#   - 3 app-Applications (personal-news-feed, smb-timemachine,
+#     softwarefactory-dashboard) — elk wijst terug naar de eigen repo van
+#     die app; personal-news-feed en software-factory blijven dus gewoon
+#     los beheerd/CI-gebumpt in hun eigen repo, alleen de
+#     ArgoCD-Application-pointer zelf staat nu hier.
+#   - personal-news-feed-applicationset.yaml — de PR-preview-ApplicationSet
+#     (verhuisd uit personal-news-feed-by-claude-code/deploy/applicationset.yaml)
+#   - github-pr-token-sealed-secret.yaml — token voor die ApplicationSet
+#     (verhuisd uit een imperatieve bootstrap.sh-stap)
+#   - preview-ns-labeller-deployment.yaml — verhuisd uit personal-news-feed-
+#     by-claude-code/deploy/preview-ns-labeller/deployment.yaml (de
+#     bijbehorende RBAC blijft daar, als losse handmatige stap — zie
+#     hieronder waarom)
 #
 # Consolideert wat vroeger 3 losse `oc apply -f .../argocd-application.yaml`-
-# commando's waren (playbook stap 4/7) tot 1 stap. Zie
-# ../../docs/disaster-recovery-playbook.md.
+# commando's + 2 losse `oc apply`'s (ApplicationSet, preview-ns-labeller
+# Deployment) waren tot 1 stap. Zie ../../docs/disaster-recovery-playbook.md.
 #
 # LET OP — nog steeds nodig als losse, handmatige prereqs vóór je dit apply't
-# (dit zijn cluster-scoped/kip-en-ei-stappen die ArgoCD zelf niet kan doen):
+# (dit zijn cluster-scoped/kip-en-ei-stappen die ArgoCD zelf niet kan doen,
+# zie ../../docs/architecture.md voor de volledige uitleg van dit mechanisme):
 #   1. ArgoCD/Sealed Secrets/storage/Reflector via bootstrap-cluster.sh
-#   2. Namespace `personal-news-feed` (via personal-news-feed/deploy/bootstrap.sh)
-#   3. Namespace `smb-timemachine` (via manifests/smb-timemachine/namespace.yaml)
-#   (softwarefactory-dashboard se namespace ontstaat wel automatisch via
-#   CreateNamespace=true in de eigen Application — zie apps/softwarefactory-dashboard-application.yaml)
+#   2. Namespace-creator-RBAC (bootstrap-cluster.sh stap 3) — nodig zodra een
+#      namespace al bestaat, lost het kip-en-ei zelf niet op
+#   3. Namespace `personal-news-feed` + preview-ns-labeller-RBAC (via
+#      personal-news-feed-by-claude-code/deploy/bootstrap.sh)
+#   4. Namespace `smb-timemachine` (via manifests/smb-timemachine/namespace.yaml)
+#   (softwarefactory-dashboard's namespace bestond al vóór de eerste sync —
+#   dus geen probleem gehad, niet omdat CreateNamespace=true het zelf oploste)
 #
 # Apply met:
 #   oc apply -f manifests/root-app/root-application.yaml
 #
-# Daarna volledig autonoom: nieuwe/gewijzigde apps in apps/ worden vanzelf
-# aangemaakt/bijgewerkt/verwijderd (prune + selfHeal aan) zodra je commit.
+# Daarna volledig autonoom: nieuwe/gewijzigde resources in apps/ worden
+# vanzelf aangemaakt/bijgewerkt/verwijderd (prune + selfHeal aan) zodra je
+# commit — met uitzondering van bovenstaande namespace/RBAC-prereqs.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

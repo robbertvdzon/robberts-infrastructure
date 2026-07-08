@@ -1,0 +1,66 @@
+# Verhuisd hierheen vanuit personal-news-feed-by-claude-code/deploy/
+# preview-ns-labeller/deployment.yaml (2026-07-08, app-of-apps-consolidatie)
+# — sync't nu mee via ../root-application.yaml, geen losse `oc apply` meer
+# nodig. De bijbehorende RBAC (ClusterRole/ClusterRoleBinding/ServiceAccount,
+# ../../../../personal-news-feed-by-claude-code/deploy/preview-ns-labeller/rbac.yaml)
+# blijft bewust WEL een losse, handmatige stap (via bootstrap.sh) —
+# ArgoCD's eigen ServiceAccount mag geen ClusterRole/ClusterRoleBinding-
+# objecten aanmaken, en dat bewust niet fixen (zou ArgoCD praktisch
+# rechten-op-alles kunnen geven). Zie ../../../docs/architecture.md.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: preview-ns-labeller
+  namespace: argocd
+  labels:
+    app: preview-ns-labeller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: preview-ns-labeller
+  template:
+    metadata:
+      labels:
+        app: preview-ns-labeller
+    spec:
+      serviceAccountName: preview-ns-labeller
+      containers:
+        - name: labeller
+          image: ghcr.io/robbertvdzon/preview-ns-labeller:main
+          imagePullPolicy: Always
+          env:
+            - name: ARGOCD_NS
+              value: "argocd"
+            - name: NS_PREFIX
+              value: "pnf-pr-"
+            - name: INTERVAL
+              value: "30"
+            # KAN-55: Neon REST API auth + project. De Secret `newsfeed-api-keys`
+            # wordt door de reflector naar de argocd-namespace gespiegeld
+            # (zie sealed-secret-api-keys.yaml — reflection-auto-namespaces
+            # bevat sinds KAN-55 ook 'argocd').
+            - name: NEON_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: newsfeed-api-keys
+                  key: NEON_API_KEY
+            - name: NEON_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: newsfeed-api-keys
+                  key: NEON_PROJECT_ID
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              # `kubectl` is een Go-binary van ~50 MB; meerdere parallele
+              # forks tegelijk binnen één poll-iteratie tikken de limit
+              # snel aan. 64Mi was te krap → OOMKilled na de eerste
+              # kubectl-call, daarna eindeloos crash-loop met alléén
+              # de "start"-log zichtbaar. Sinds KAN-55 doen we ook curl
+              # naar Neon API + jq-parsing, dus 192Mi blijft krap maar
+              # is genoeg voor de typische 1-3 PR-namespaces.
+              cpu: 200m
+              memory: 256Mi

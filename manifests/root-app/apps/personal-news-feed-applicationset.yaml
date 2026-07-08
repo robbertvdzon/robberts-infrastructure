@@ -1,0 +1,99 @@
+# ArgoCD ApplicationSet: spint per open PR (branch ai/*) een eigen
+# preview-deploy op. Bij PR-merge of -close pruned ArgoCD de gegenereerde
+# Application + z'n resources netjes — MAAR NIET de namespace zelf
+# (CreateNamespace=true wordt niet als resource getrackt, dus nooit
+# geprund). Zie ../../../docs/cluster-inventory.md §8 voor de volledige
+# uitleg — dit veroorzaakte 29 stale pnf-pr-*-namespaces (opgeruimd
+# 2026-07-08), nog niet structureel gefixt.
+#
+# Verhuisd hierheen vanuit personal-news-feed-by-claude-code/deploy/
+# applicationset.yaml (2026-07-08, app-of-apps-consolidatie) — sync't nu
+# mee via ../root-application.yaml, geen losse `oc apply` meer nodig.
+#
+# De pullRequest-generator vraagt elke 3 min aan GitHub welke PR's open
+# staan met branch-prefix ai/. Token via `tokenRef` → zie
+# github-pr-token-sealed-secret.yaml hiernaast (eigen SealedSecret sinds
+# 2026-07-08, was een afgeleide kopie via bootstrap.sh).
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: personal-news-feed-previews
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+
+  generators:
+    - pullRequest:
+        github:
+          owner: robbertvdzon
+          repo: personal-news-feed-by-claude-code
+          # Alleen ai/* branches → AI-gegenereerde preview-deploys
+          labels: []
+          tokenRef:
+            secretName: github-pr-token
+            key: token
+        # Refresh-interval — hoe vaak vraagt ArgoCD aan GitHub welke PR's open zijn
+        requeueAfterSeconds: 180
+        filters:
+          - branchMatch: '^ai/.+$'
+
+  template:
+    metadata:
+      # PR-number én branch-naam in de Application-naam zodat 'ie uniek
+      # is en herkenbaar in ArgoCD-UI.
+      name: 'preview-{{.number}}-{{.branch_slug}}'
+      labels:
+        app.kubernetes.io/part-of: personal-news-feed
+        app.kubernetes.io/managed-by: argocd
+        preview-pr: '{{.number}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/robbertvdzon/personal-news-feed-by-claude-code.git
+        targetRevision: '{{.head_sha}}'
+        path: deploy/overlays/preview
+        kustomize:
+          # Per-PR overrides:
+          #   - namespace wordt pnf-pr-<num>-<branch_slug> (max 63 chars,
+          #     alleen kebab-lowercase)
+          #   - image-tags worden de SHA van deze PR (zodat preview altijd
+          #     de juiste build draait)
+          namespace: 'pnf-pr-{{.number}}'
+          images:
+            # PR-specifieke image-tags. De build-workflow tagt elke
+            # PR-commit met sha-<short>. `head_short_sha_7` is een ingebouwde
+            # variabele uit de PullRequest-generator (7-karakter prefix).
+            #
+            # Lookup-naam moet de FULL URL zijn — de base/kustomization.yaml
+            # heeft de placeholder `backend` al gemapped naar de volle URL,
+            # dus daarna match je niet meer op `backend` maar op de URL.
+            - 'ghcr.io/robbertvdzon/personal-news-feed-backend=ghcr.io/robbertvdzon/personal-news-feed-backend:sha-{{.head_short_sha_7}}'
+            - 'ghcr.io/robbertvdzon/personal-news-feed-frontend=ghcr.io/robbertvdzon/personal-news-feed-frontend:sha-{{.head_short_sha_7}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'pnf-pr-{{.number}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        # managedNamespaceMetadata + CreateNamespace=true kunnen een
+        # namespace NIET voor het eerst zelf aanmaken (kip-en-ei,
+        # geverifieerd 2026-07-08 — zie ../root-application.yaml voor de
+        # volledige uitleg). preview-ns-labeller (in personal-news-feed-
+        # by-claude-code/deploy/preview-ns-labeller/) doet dat werk nog
+        # steeds: maakt de pnf-pr-<N>-namespace aan + labelt 'm, waarna
+        # ArgoCD 'm mag overnemen. Deze instellingen hier zorgen alleen dat
+        # het label blijft staan zodra de namespace eenmaal bestaat.
+        managedNamespaceMetadata:
+          labels:
+            argocd.argoproj.io/managed-by: argocd
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
