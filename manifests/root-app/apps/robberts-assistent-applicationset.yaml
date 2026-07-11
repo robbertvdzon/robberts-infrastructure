@@ -1,0 +1,74 @@
+# ArgoCD ApplicationSet: spint per open PR op robbertvdzon/robberts-assistent
+# een eigen preview-deploy op in namespace robberts-assistent-pr-<nummer>.
+# Zelfde patroon als personal-news-feed-applicationset.yaml, maar zonder een
+# eigen database-labeller: robberts-assistent-backend heeft geen database
+# (notities zijn in-memory), dus er is geen Neon-branch-per-preview nodig.
+#
+# Let op dezelfde bekende beperking als bij personal-feed: CreateNamespace=true
+# namespaces worden niet als resource getrackt en dus nooit automatisch
+# geprund bij PR-merge/-close. Zie docs/cluster-inventory.md §8. Ruim
+# verweesde robberts-assistent-pr-*-namespaces zo nu en dan handmatig op met
+# `oc delete ns robberts-assistent-pr-<N>`.
+#
+# Hergebruikt de bestaande `github-pr-token`-secret (github-pr-token-sealed-
+# secret.yaml hiernaast) — die PAT heeft toegang tot alle repo's van dit
+# GitHub-account, dus geen nieuw token nodig.
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: robberts-assistent-previews
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+
+  generators:
+    - pullRequest:
+        github:
+          owner: robbertvdzon
+          repo: robberts-assistent
+          labels: []
+          tokenRef:
+            secretName: github-pr-token
+            key: token
+        requeueAfterSeconds: 180
+
+  template:
+    metadata:
+      name: 'ra-preview-{{.number}}-{{.branch_slug}}'
+      labels:
+        app.kubernetes.io/part-of: robberts-assistent
+        app.kubernetes.io/managed-by: argocd
+        preview-pr: '{{.number}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/robbertvdzon/robberts-assistent.git
+        targetRevision: '{{.head_sha}}'
+        path: deploy/overlays/preview
+        kustomize:
+          namespace: 'robberts-assistent-pr-{{.number}}'
+          images:
+            # Lookup-naam moet de FULL URL zijn — deploy/base/kustomization.yaml
+            # heeft de image-placeholders al gemapped naar de volle URL.
+            - 'ghcr.io/robbertvdzon/robberts-assistent-backend=ghcr.io/robbertvdzon/robberts-assistent-backend:sha-{{.head_short_sha_7}}'
+            - 'ghcr.io/robbertvdzon/robberts-assistent-frontend=ghcr.io/robbertvdzon/robberts-assistent-frontend:sha-{{.head_short_sha_7}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'robberts-assistent-pr-{{.number}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        managedNamespaceMetadata:
+          labels:
+            argocd.argoproj.io/managed-by: argocd
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2

@@ -1,0 +1,35 @@
+# Prod-Application voor robberts-assistent. De daadwerkelijke deploy-
+# manifesten (met CI-gebumpte image-tags) blijven in de robberts-assistent-
+# repo zelf, zie spec.source hieronder — zelfde patroon als
+# personal-news-feed-application.yaml/softwarefactory-dashboard.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: robberts-assistent
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/robberts-assistent.git
+    targetRevision: main
+    path: deploy/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: robberts-assistent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        argocd.argoproj.io/managed-by: argocd
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
