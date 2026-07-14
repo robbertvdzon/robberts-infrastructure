@@ -26,7 +26,6 @@ docs/
   install-troubleshooting.md        — bekende install-valkuilen (6 pogingen/~18u ervaring), symptoom→fix
   backup-and-restore.md             — wat je moet backuppen vóór je iets riskants doet, en hoe
   download-install-tools.md         — openshift-install/oc/ISO opnieuw downloaden + pull-secret in 1Password
-  disk-4tb-to-12tb-migration.md     — procedure om de 4TB-schijf te vervangen door 12TB
   smb-timemachine-test-procedure.md — hoe je de SMB/Time-Machine-share test
   manual-external-steps.md          — dingen die NIET in een script zitten (DNS, Cloudflare, router)
 
@@ -47,8 +46,6 @@ scripts/
 
 ## Snel starten
 
-- **Reinstall-rehearsal op een tijdelijke schijf (same-day test)?** Eén korte
-  checklist: [docs/rebuild-rehearsal-checklist.md](docs/rebuild-rehearsal-checklist.md).
 - **Cluster opnieuw opbouwen (volledig, met alle uitleg)?** Begin bij [docs/disaster-recovery-playbook.md](docs/disaster-recovery-playbook.md).
 - **Eerst backuppen?** Altijd — zie [docs/backup-and-restore.md](docs/backup-and-restore.md), en run
   `./scripts/backup/backup-all.sh` vóórdat je wat dan ook riskants doet.
