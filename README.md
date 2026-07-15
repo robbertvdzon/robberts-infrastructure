@@ -26,7 +26,7 @@ docs/
   install-troubleshooting.md        — bekende install-valkuilen (6 pogingen/~18u ervaring), symptoom→fix
   backup-and-restore.md             — wat je moet backuppen vóór je iets riskants doet, en hoe
   download-install-tools.md         — openshift-install/oc/ISO opnieuw downloaden + pull-secret in 1Password
-  smb-timemachine-test-procedure.md — hoe je de SMB/Time-Machine-share test
+  smb-timemachine-usage.md          — permanente mount, Time Machine, andere backups, schijf vervangen
   manual-external-steps.md          — dingen die NIET in een script zitten (DNS, Cloudflare, router)
 
 manifests/

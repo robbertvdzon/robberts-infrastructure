@@ -18,7 +18,7 @@ netwerkschijven ontdekt), inclusief bevestiging dat data daadwerkelijk op de
 exFAT-partitie landt (`df` binnen de pod toont `/dev/sdc2`, niet de OS-schijf).
 Nog **niet** getest: een volledige, langlopende Time Machine-backup (alleen
 handmatige bestandsoperaties via `mount_smbfs`). Zie
-[../../docs/smb-timemachine-test-procedure.md](../../docs/smb-timemachine-test-procedure.md)
+[../../docs/smb-timemachine-usage.md](../../docs/smb-timemachine-usage.md)
 voor hoe je dat verifieert.
 
 Eén ding is bewust anders dan bij een gewone XFS-schijf: `SAMBA_VOLUME_CONFIG_timemachine`
@@ -78,7 +78,8 @@ Volledig autonoom dus (self-heal aan, prune aan). Wachtwoord wijzigen: zie
 [ROTATE-PASSWORD.md](ROTATE-PASSWORD.md) — ook dat gaat via git + ArgoCD, niet
 via een losse `oc create secret`.
 
-Testen: zie [../../docs/smb-timemachine-test-procedure.md](../../docs/smb-timemachine-test-procedure.md).
+Gebruik, permanente mount, Time Machine-instellen en schijf vervangen: zie
+[../../docs/smb-timemachine-usage.md](../../docs/smb-timemachine-usage.md).
 
 ## Bekende beperkingen
 
