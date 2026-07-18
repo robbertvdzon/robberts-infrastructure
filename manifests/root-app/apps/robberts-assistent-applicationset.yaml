@@ -55,6 +55,7 @@ spec:
             # heeft de image-placeholders al gemapped naar de volle URL.
             - 'ghcr.io/robbertvdzon/robberts-assistent-backend=ghcr.io/robbertvdzon/robberts-assistent-backend:sha-{{.head_short_sha_7}}'
             - 'ghcr.io/robbertvdzon/robberts-assistent-frontend=ghcr.io/robbertvdzon/robberts-assistent-frontend:sha-{{.head_short_sha_7}}'
+            - 'ghcr.io/robbertvdzon/groentetuin-frontend=ghcr.io/robbertvdzon/groentetuin-frontend:sha-{{.head_short_sha_7}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: 'robberts-assistent-pr-{{.number}}'
