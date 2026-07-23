@@ -77,6 +77,47 @@ opnieuw (nieuwe token), en herbouw het kubeconfig-bestand (zie het script
 hieronder). Dit hoeft NIET gebackupt te worden zoals de sealed-secrets-key —
 het is zo opnieuw te genereren, geen dataverlies bij kwijtraken.
 
+## Het `kubeconfig-agent-readonly`-bestand (opnieuw) genereren
+
+Dit bestand is géén install-artefact — het is een handmatig samengesteld
+kubeconfig dat het `claude-agent`-SA-token + cluster-CA bundelt. Het staat op
+`~/okd-sno/sno/auth/kubeconfig-agent-readonly` (een **bestand**, niet een map —
+`SF_KUBECONFIG` in `software-factory/secrets.env` wijst precies hiernaar, en de
+software-factory mount dit als enkel bestand in de agent-container; een
+verkeerd/ontbrekend pad wordt door Docker een lege map → `oc` in de container
+kapot).
+
+Vereist: ingelogd met het **admin**-account (`~/okd-sno/sno/auth/kubeconfig`)
+én `oc apply -k manifests/agent-access/` al gedraaid (SA + token-Secret bestaan).
+
+```bash
+export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig   # admin
+SA_NS=agent-access
+SECRET=claude-agent-token
+OUT=~/okd-sno/sno/auth/kubeconfig-agent-readonly
+
+SERVER=$(oc whoami --show-server)                 # https://api.sno.lab.vdzon.com:6443
+TOKEN=$(oc get secret "$SECRET" -n "$SA_NS" -o jsonpath='{.data.token}' | base64 -d)
+oc get secret "$SECRET" -n "$SA_NS" -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/agent-ca.crt
+
+rm -f "$OUT"
+oc config set-cluster sno --server="$SERVER" \
+   --certificate-authority=/tmp/agent-ca.crt --embed-certs=true --kubeconfig="$OUT"
+oc config set-credentials claude-agent --token="$TOKEN" --kubeconfig="$OUT"
+oc config set-context claude-agent --cluster=sno --user=claude-agent \
+   --namespace=default --kubeconfig="$OUT"
+oc config use-context claude-agent --kubeconfig="$OUT"
+rm -f /tmp/agent-ca.crt
+```
+
+Verifieer (moet exact dit geven):
+```bash
+KUBECONFIG=~/okd-sno/sno/auth/kubeconfig-agent-readonly oc whoami
+# system:serviceaccount:agent-access:claude-agent
+oc auth can-i delete projects   --kubeconfig=$OUT   # yes  (de bewuste uitzondering)
+oc auth can-i get secrets -n software-factory --kubeconfig=$OUT   # no
+```
+
 ## Bij een reinstall
 
 1. Na stap 3 van [disaster-recovery-playbook.md](disaster-recovery-playbook.md)
@@ -84,9 +125,9 @@ het is zo opnieuw te genereren, geen dataverlies bij kwijtraken.
    ```bash
    oc apply -k manifests/agent-access/
    ```
-2. Token + kubeconfig opnieuw genereren (zelfde recept als hierboven getest —
-   zie de git-geschiedenis van dit bestand of vraag Claude Code het opnieuw
-   te doen, het is 100% herhaalbaar vanuit de manifests).
+2. Het `kubeconfig-agent-readonly`-bestand opnieuw genereren met het recept
+   hierboven (100% herhaalbaar vanuit de manifests; het `build-okd-sno.sh`
+   genereert dit bestand NIET, dat moet je zelf doen).
 3. `SF_KUBECONFIG` in `software-factory/secrets.env` blijft hetzelfde pad
    wijzen (`~/okd-sno/sno/auth/kubeconfig-agent-readonly`) — alleen de
    inhoud van dat bestand is nieuw na een reinstall.
