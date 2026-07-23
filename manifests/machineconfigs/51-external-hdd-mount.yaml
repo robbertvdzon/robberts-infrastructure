@@ -1,9 +1,13 @@
 # MachineConfig: mount de externe USB-HDD (exFAT) op /var/mnt/external-hdd.
 #
-# Schijf: Verbatim Desktop HDD 3.0 (3.7TB, exFAT, label "data"), geadresseerd
-# via /dev/disk/by-id/usb-Verbatim_Desktop_HDD_3.0_WM5O10766000-0:0-part2 —
-# stabiel over reboots, in tegenstelling tot /dev/sdc2 (kan van letter wisselen
-# als er meer USB-schijven worden aangesloten).
+# Schijf: Seagate Expansion HDD (exFAT, label "data"), geadresseerd via
+# /dev/disk/by-id/usb-Seagate_Expansion_HDD_00000000NT1H8V9L-0:0-part2 —
+# stabiel over reboots, in tegenstelling tot /dev/sdX2 (kan van letter wisselen
+# als er meer USB-schijven worden aangesloten). Vervangt sinds 2026-07-23 de
+# eerdere Verbatim Desktop HDD 3.0 (schijfvervanging, zie
+# ../../docs/smb-timemachine-usage.md §5) — data verhuisde bewust niet mee,
+# de nieuwe schijf begint leeg (zie de initContainer-permissiefix in
+# ../smb-timemachine/deployment.yaml die dit zelfherstellend opvangt).
 #
 # uid=1000,gid=1000: exFAT heeft geen POSIX-ownership per bestand — de
 # mount-opties bepalen de eigenaar van ALLE bestanden op de share (moet
@@ -47,7 +51,7 @@ spec:
           Description=Mount external USB HDD (exFAT) for SMB/Time Machine
           Before=local-fs.target
           [Mount]
-          What=/dev/disk/by-id/usb-Verbatim_Desktop_HDD_3.0_WM5O10766000-0:0-part2
+          What=/dev/disk/by-id/usb-Seagate_Expansion_HDD_00000000NT1H8V9L-0:0-part2
           Where=/var/mnt/external-hdd
           Type=exfat
           Options=uid=1000,gid=1000,umask=0000,nofail
