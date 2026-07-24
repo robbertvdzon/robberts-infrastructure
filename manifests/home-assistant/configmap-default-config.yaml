@@ -16,3 +16,14 @@ data:
     # README.md in deze map voor de reden (SQLite-writes vs exFAT).
     recorder:
       db_url: sqlite:////data/recorder/home-assistant_v2.db
+
+    # Zonder dit: "400 Bad Request" / "your HTTP integration is not set-up
+    # for reverse proxies" — de OpenShift Router (Route-TLS-termination)
+    # stuurt verzoeken door, en HA vertrouwt een onbekende reverse proxy
+    # standaard niet. 192.168.178.64 is het node-IP (zie
+    # ../../docs/architecture.md) — de Route draait op dezelfde node als de
+    # pod, dus dat IP is wat HA als afzender ziet.
+    http:
+      use_x_forwarded_for: true
+      trusted_proxies:
+        - 192.168.178.64

@@ -73,12 +73,24 @@ het LAN) en door de gebruikelijke HA-onboarding-wizard heen. Zet daarna
 meteen MFA (TOTP) aan onder je gebruikersprofiel — wachtwoord-only is
 alleen bedoeld als eerste beschermingslaag zolang dit LAN-only blijft.
 
+## Gevonden en gefixt tijdens het testen (nuttig bij toekomstige wijzigingen)
+
+1. `hostmount-anyuid`-SCC (eerste poging) staat geen `hostNetwork: true` toe
+   — pod kwam nooit op (`FailedCreate`). Opgelost door `privileged` (zie
+   `rolebinding-scc.yaml`).
+2. Zonder `http.trusted_proxies` gaf elk verzoek via de Route een
+   `400 Bad Request` ("your HTTP integration is not set-up for reverse
+   proxies") — HA vertrouwt de OpenShift Router niet standaard. Opgelost
+   door `192.168.178.64` (het node-IP) expliciet te vertrouwen in
+   `configmap-default-config.yaml`.
+3. Onschuldige, genegeerde warnings in de logs: Bluetooth-integratie mist
+   `NET_ADMIN`/`NET_RAW` (geen Bluetooth-hardware relevant hier) en
+   `aiodhcpwatcher` kan geen raw DHCP-packets lezen. Beide zijn optionele
+   auto-discovery-features uit `default_config:`, niet blokkerend.
+
 ## Bekende beperkingen
 
 - Geen backup van `home-assistant_v2.db` (bewust, zie boven — disposable).
 - Geen backup van `/config` op de HDD tegen schijf-falen zelf (single point
   of failure, zelfde situatie als de Time Machine-data nu al). Los
   aandachtspunt, niet opgelost in deze opzet.
-- Nog niet getest op een echte deploy — verifieer na de eerste sync of
-  `/config` daadwerkelijk op de HDD landt (`oc exec` + `df` binnen de pod,
-  zelfde verificatie als smb-timemachine deed).
