@@ -1,0 +1,34 @@
+# Zelfde patroon als smb-timemachine-application.yaml: manifests staan
+# volledig in déze repo (geen eigen CI/app-repo), Application-pointer hier
+# in root-app/apps zodat root-apps 'm oppikt.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-assistant
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/robberts-infrastructure.git
+    targetRevision: main
+    path: manifests/home-assistant
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: home-assistant
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        argocd.argoproj.io/managed-by: argocd
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

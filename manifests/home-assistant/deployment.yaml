@@ -1,0 +1,110 @@
+# /config (integraties, .storage/, dashboards, automations.yaml) staat op de
+# externe 16TB-HDD via hostPath — overleeft een reinstall automatisch, want
+# een OS-reinstall raakt alleen de node-schijf, niet deze losse USB-drive
+# (zelfde principe als ../smb-timemachine). De recorder-database staat
+# bewust NIET hier maar op een losse PVC (zie pvc.yaml) — SQLite's zware
+# transactionele writes zijn een slechte match met exFAT (geen journaling),
+# terwijl de rest van /config (simpele hele-bestand JSON/YAML-writes) daar
+# geen probleem mee heeft. Zie README.md voor de volledige afweging.
+#
+# hostNetwork: true zodat mDNS/SSDP-discovery (Chromecast, HomeKit, ESPHome,
+# Sonos, enz.) door de pod-overlay heen werkt — zelfde reden als avahi bij
+# smb-timemachine. Bewust alleen LAN-bereikbaar: geen Cloudflare Tunnel, zie
+# route.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-assistant
+  namespace: home-assistant
+spec:
+  replicas: 1
+  strategy:
+    # hostNetwork + vaste poort 8123 verdraagt geen 2 pods tegelijk op
+    # dezelfde node — zelfde reden als bij smb-timemachine.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: home-assistant
+  template:
+    metadata:
+      labels:
+        app: home-assistant
+    spec:
+      serviceAccountName: home-assistant
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      # Eén node in dit cluster, maar expliciet zodat de hostPath-mount niet
+      # per ongeluk op een andere node geschedule wordt als het cluster ooit
+      # groeit.
+      nodeSelector:
+        kubernetes.io/hostname: sno.lab.vdzon.com
+      initContainers:
+        # 1. Permissie-vangnet: een verse/vervangen hostPath-subdir kan door
+        #    kubelet als root:root worden aangemaakt vóórdat de exFAT-mount-
+        #    opties (uid=1000,gid=1000) 'm overnemen — zelfde les als bij
+        #    smb-timemachine (zie die README.md).
+        # 2. Seed configuration.yaml — ALLEEN als 'ie nog niet bestaat, dus
+        #    nooit destructief voor een lopende/handmatig aangepaste config.
+        - name: init-config
+          image: ghcr.io/home-assistant/home-assistant:stable
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /config
+              chown 1000:1000 /config
+              chmod 0755 /config
+              if [ ! -f /config/configuration.yaml ]; then
+                cp /seed/configuration.yaml /config/configuration.yaml
+              fi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: seed-config
+              mountPath: /seed
+      containers:
+        - name: home-assistant
+          image: ghcr.io/home-assistant/home-assistant:stable
+          ports:
+            - containerPort: 8123
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: recorder
+              mountPath: /data/recorder
+          # HA laadt bij de eerste start met default_config: veel integraties
+          # tegelijk — ruime initialDelaySeconds/failureThreshold om
+          # restart-loops tijdens het eerste opstarten te voorkomen.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8123
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8123
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+      volumes:
+        - name: config
+          hostPath:
+            path: /var/mnt/external-hdd/home-assistant
+            type: DirectoryOrCreate
+        - name: recorder
+          persistentVolumeClaim:
+            claimName: home-assistant-recorder
+        - name: seed-config
+          configMap:
+            name: home-assistant-default-config

@@ -1,0 +1,18 @@
+# Declaratieve SCC-grant, zelfde aanpak als
+# ../smb-timemachine/rolebinding-scc.yaml. Hier bewust `hostmount-anyuid`
+# i.p.v. smb-timemachine's `privileged`: Home Assistant heeft alleen het
+# recht nodig om een hostPath te mounten (voor /config op de externe HDD),
+# geen extra capabilities zoals avahi's CAP_NET_RAW/NET_ADMIN.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: system:openshift:scc:hostmount-anyuid
+  namespace: home-assistant
+subjects:
+  - kind: ServiceAccount
+    name: home-assistant
+    namespace: home-assistant
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:hostmount-anyuid

@@ -1,0 +1,19 @@
+# Uitsluitend voor de recorder-database (home-assistant_v2.db) — history/
+# logbook/long-term-statistics. Bewust NIET reinstall-proof: `local-path` is
+# hostPath onder /var/lib/local-path-provisioner op de node-OS-schijf, dus
+# een reinstall wist deze PVC. Dat is acceptabel voor dit specifieke bestand:
+# het is pure tijdreeks-data die na een lege herstart vanzelf weer opbouwt.
+# De écht kritieke config (.storage/, dashboards, integraties) staat NIET
+# hier maar op de externe HDD, zie deployment.yaml + README.md.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: home-assistant-recorder
+  namespace: home-assistant
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi

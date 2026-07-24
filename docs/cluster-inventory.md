@@ -21,6 +21,7 @@ personal-news-feed-preview-namespaces, en de app-of-apps-consolidatie (zie
 | `softwarefactory-dashboard` (namespace) | Ja | Gedeeltelijk — `oc apply -f deploy/base/namespace.yaml` (softwarefactory-repo) blijft verplicht; nooit eerder gescript geweest (gat gevonden 2026-07-08, zie hieronder) |
 | `agent-access` (read-only ServiceAccount) | Ja | Gedeeltelijk — apply is gescript, token-generatie niet |
 | PVC `personal-news-feed/backend-data` | Ja | Ja (StorageClass-provisioned, geen data-backup nodig — check met Robbert of de inhoud vervangbaar is) |
+| `home-assistant` (namespace + hostPath op externe HDD + PVC) | Ja | Grotendeels — zie §10: `/config` op de HDD overleeft een reinstall vanzelf, de recorder-PVC (`local-path`) bewust niet |
 | ~~YouTrack~~ | **Nee — verwijderd 2026-07-08** | n.v.t. |
 | ~~29 `pnf-pr-*` preview-namespaces~~ | **Nee — verwijderd 2026-07-08** | n.v.t. (hoorden niet bij open PR's) |
 
@@ -135,6 +136,24 @@ opruiming meegenomen.
 Geen cert-manager, geen los monitoring/Prometheus/Grafana, geen eigen ingress-controller (OpenShift
 Route/router), geen eigen DNS-server (extern bij one.com). Geen dangling SCC-grants gevonden na het
 verwijderen van YouTrack (`anyuid`/`privileged` SCC's bevatten geen youtrack-restjes).
+
+### 10. home-assistant (toegevoegd 2026-07-24)
+Manifests volledig in déze repo (geen eigen CI/app-repo), zelfde opzet als smb-timemachine:
+Application-pointer via root-apps, namespace via `CreateNamespace=true`. Zie
+[`../manifests/home-assistant/README.md`](../manifests/home-assistant/README.md) voor de volledige
+afweging. Kort:
+
+- **`/config`** (integraties, `.storage/`, dashboards, automations) staat op een `hostPath` naar de
+  externe 16TB-HDD (dezelfde schijf als smb-timemachine, andere submap) — overleeft een reinstall
+  automatisch, geen aparte backup-stap nodig. Dit ís het kritieke, niet-zelf-herstellende deel.
+- **`home-assistant_v2.db`** (recorder — history/logbook/statistics) staat bewust op een losse PVC
+  (`local-path`, 2Gi) — dus NIET reinstall-proof, wordt na reinstall leeg. Bewuste keuze: dit is pure
+  tijdreeks-data die vanzelf weer opbouwt, en `local-path` (ext4, journaling) is veiliger voor
+  SQLite's zware writes dan de exFAT-HDD.
+- LAN-only bereikbaar via een Route (`home-assistant.apps.sno.lab.vdzon.com`, bestaande wildcard-DNS)
+  — bewust géén Cloudflare Tunnel, zie de README.
+- Nog niet getest op een echte deploy — verifiëren na de eerste sync staat als bekende beperking in
+  de README.
 
 ## Wat hierna nog moet (vóór de echte reinstall)
 

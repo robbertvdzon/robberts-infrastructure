@@ -1,0 +1,18 @@
+# Seed voor configuration.yaml — wordt door de initContainer in
+# deployment.yaml alleen gekopieerd als /config/configuration.yaml nog niet
+# bestaat (verse of vervangen HDD). Latere wijzigingen via de HA-UI of met de
+# hand worden nooit overschreven; dit ConfigMap is puur een startpunt.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: home-assistant-default-config
+  namespace: home-assistant
+data:
+  configuration.yaml: |
+    default_config:
+
+    # Recorder (history/logbook/long-term-statistics) bewust op de losse
+    # PVC, niet op de exFAT-HDD waar de rest van /config staat — zie
+    # README.md in deze map voor de reden (SQLite-writes vs exFAT).
+    recorder:
+      db_url: sqlite:////data/recorder/home-assistant_v2.db

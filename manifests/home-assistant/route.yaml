@@ -1,0 +1,21 @@
+# Host valt onder de bestaande wildcard-DNS (`A *.apps.sno.lab.vdzon.com`,
+# zie ../../docs/manual-external-steps.md) — geen nieuwe DNS-entry nodig.
+# Bewust GEEN Cloudflare Tunnel ervoor: er is geen port-forwarding op de
+# router, dus deze Route is standaard alleen bereikbaar vanaf het eigen LAN
+# (of via VPN naar huis). Home Assistant bestuurt fysieke dingen in huis —
+# LAN-only is hier de bewuste keuze, niet een tijdelijke tussenstap.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: home-assistant
+  namespace: home-assistant
+spec:
+  host: home-assistant.apps.sno.lab.vdzon.com
+  to:
+    kind: Service
+    name: home-assistant
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
