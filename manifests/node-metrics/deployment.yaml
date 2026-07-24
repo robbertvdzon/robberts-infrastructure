@@ -15,19 +15,23 @@
 # avahi/mDNS wél CAP_NET_RAW/CAP_NET_ADMIN nodig heeft). De SCC-RoleBinding
 # staat hostPath toe zonder dat de container zelf host-root-rechten krijgt.
 #
-# `runAsUser: 1000` (wél nodig, sinds de Time Machine-uitlezing): de
-# externe-HDD-mount is exFAT, dus alle bestanden/mappen erop krijgen hun
-# ownership gesynthetiseerd via de mount-opties (uid=1000,gid=1000, zie
-# ../smb-timemachine/deployment.yaml) — de `timemachine`-submap staat
-# daarbovenop nog eens 0700 (initContainer in smb-timemachine). Zonder
-# `runAsUser: 1000` draait deze container met UID 0, maar zonder
-# `privileged: true` op de container zelf mist die "root" de
-# CAP_DAC_OVERRIDE die nodig is om andermans 0700-map te lezen — geverifieerd
-# op het echte cluster: `{"error": "[Errno 13] Permission denied:
-# '/host-external-hdd/timemachine'"}` tot deze regel toegevoegd werd. Volstaat
-# hier wél (i.p.v. het zwaardere `privileged: true`) omdat UID 1000 gewoon de
-# eigenaar is volgens de mount-opties — normale DAC-permissies, geen
-# capability-omzeiling nodig.
+# `runAsUser: 1000` + `seLinuxOptions.type: spc_t` (wél nodig, sinds de Time
+# Machine-uitlezing): `runAsUser: 1000` alleen bleek niet genoeg — op het
+# echte cluster gaf `stat` op de `timemachine`-map keurig `drwxrwxrwx
+# uid=1000` terug, maar `os.listdir()` (en dus de app zelf) kreeg alsnog
+# `PermissionError: [Errno 13] Permission denied`. Dat `stat` (getattr) wél
+# lukt en `listdir` (read) niet, is het klassieke SELinux-symptoom (aparte
+# permission-classes), geen POSIX-rechtenprobleem.
+#
+# Bewust NIET `privileged: true` (zoals smb-timemachine voor hetzelfde
+# hostPath gebruikt): dat geeft o.a. CAP_SYS_ADMIN, waarmee een proces in
+# theorie de eigen `readOnly: true`-mount actief zou kunnen her-mounten als
+# read-write — een veel grotere blast radius dan nodig voor "lees één mapje".
+# `seLinuxOptions.type: spc_t` (toegestaan door de al gekoppelde privileged-
+# SCC, zie rolebinding-scc.yaml) verandert alléén hoe SELinux dit proces
+# classificeert voor toegang tot host-gelabelde bestanden — geen extra
+# Linux-capabilities, dus de read-only-mount blijft ook daadwerkelijk
+# onomzeilbaar afgedwongen door de kernel.
 #
 # Image: kaal python:3-alpine — het serverscript (configmap-server.yaml)
 # gebruikt alleen de standaardbibliotheek, dus geen pip install/eigen image
@@ -63,6 +67,8 @@ spec:
           command: ["python3", "/scripts/serve.py"]
           securityContext:
             runAsUser: 1000
+            seLinuxOptions:
+              type: spc_t
           ports:
             - containerPort: 8080
               name: http
