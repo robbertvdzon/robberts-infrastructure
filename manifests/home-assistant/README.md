@@ -49,8 +49,12 @@ gewoon, altijd, zonder extra mechanisme.
 - **`hostNetwork: true`**: mDNS/SSDP-discovery (Chromecast, HomeKit,
   ESPHome, Sonos, enz.) werkt niet betrouwbaar door de pod-overlay heen —
   zelfde reden als avahi bij [../smb-timemachine](../smb-timemachine).
-- **SCC `hostmount-anyuid`** i.p.v. smb-timemachine's `privileged`: alleen
-  het recht om een hostPath te mounten is nodig, geen extra capabilities.
+- **SCC `privileged`**: eerste poging was `hostmount-anyuid` (minder
+  rechten, alleen hostPath), maar die staat geen `hostNetwork: true` toe —
+  gaf `FailedCreate`/"Host network is not allowed to be used" en geen
+  enkele pod kwam op. `privileged` is de enige SCC die hostPath +
+  hostNetwork + hostPort samen toestaat (zelfde reden als bij
+  smb-timemachine).
 - **initContainer**: permissie-vangnet (zelfde les als smb-timemachine —
   zie die README) + seed van `configuration.yaml` **alleen als die nog niet
   bestaat**, zodat een latere handmatige wijziging nooit overschreven
