@@ -1,5 +1,5 @@
 # Klein, dependency-vrij HTTP-serverscript (alleen Python-stdlib, geen pip
-# install nodig — draait zo in een kaal python-image) dat drie dingen
+# install nodig — draait zo in een kaal python-image) dat vier dingen
 # uitleest en als JSON teruggeeft op GET /metrics.json:
 #   - geheugen: /host-proc/meminfo (hostPath-mount van de node's /proc)
 #   - SSD (/dev/sda, de OS-schijf): statvfs op /host-root (hostPath-mount
@@ -7,11 +7,22 @@
 #     met minder leestoegang dan de hele hostroot mounten)
 #   - externe USB-HDD: statvfs op /host-external-hdd (hostPath-mount van
 #     /var/mnt/external-hdd, zie ../machineconfigs/51-external-hdd-mount.yaml)
+#   - Time Machine-backups: per *.sparsebundle onder
+#     /host-external-hdd/timemachine (zie ../smb-timemachine/deployment.yaml
+#     — dezelfde hostPath, de sparsebundle-map van de Samba-share) de
+#     totale bandbestand-grootte en het nieuwste mtime binnen die map, als
+#     proxy voor "grootte" en "laatste schrijfmoment" — een sparsebundle op
+#     exFAT heeft geen los, snel uit te lezen backup-tijdstip zoals de
+#     datum-mapjes van klassieke (HFS+) Time Machine-backups, dus dit is de
+#     goedkoopste betrouwbare aanpak zonder de bundle te hoeven mounten.
 #
 # Elke sectie is los ge-try/excepted: ontbreekt een mount of faalt een
 # uitlezing, dan komt er een {"error": "..."} voor dát onderdeel i.p.v. de
 # hele respons te laten crashen (zelfde soort per-sectie-foutafhandeling als
-# BriefingService.buildFresh in robberts-assistent).
+# BriefingService.buildFresh in robberts-assistent). Bij Time Machine geldt
+# dat ook per sparsebundle: faalt het uitlezen van één bundle (bv. een rare
+# permissie op één bestand), dan krijgt alleen dat ene lijst-item een
+# "error"-veld in plaats van de hele lijst te laten mislukken.
 #
 # Geen authenticatie op deze endpoint — bewust: de Service is ClusterIP
 # (alleen bereikbaar binnen het cluster), niet extern geëxposeerd via een
@@ -24,6 +35,7 @@ metadata:
   namespace: node-metrics
 data:
   serve.py: |
+    import datetime
     import http.server
     import json
     import os
@@ -68,6 +80,44 @@ data:
         }
 
 
+    def scan_sparsebundle(path):
+        # Directory-mtime alleen verandert bij toe/verwijderen van entries, niet bij wijzigingen
+        # aan bestaande bandbestanden — dus lopen we alles langs voor het écht nieuwste mtime.
+        total_size = 0
+        latest_mtime = 0
+        for root, _dirs, files in os.walk(path):
+            for name in files:
+                try:
+                    st = os.stat(os.path.join(root, name))
+                except OSError:
+                    continue  # bv. een band die net wegverwijderd is tijdens compactie
+                total_size += st.st_size
+                latest_mtime = max(latest_mtime, st.st_mtime)
+        return total_size, latest_mtime
+
+
+    def read_time_machine():
+        base = "/host-external-hdd/timemachine"
+        backups = []
+        for entry in sorted(os.listdir(base)):
+            if not entry.endswith(".sparsebundle"):
+                continue
+            name = entry[: -len(".sparsebundle")]
+            try:
+                size, mtime = scan_sparsebundle(os.path.join(base, entry))
+                backups.append({
+                    "name": name,
+                    "sizeGb": round(size / 1e9, 1),
+                    "lastModified": (
+                        datetime.datetime.utcfromtimestamp(mtime).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        if mtime else None
+                    ),
+                })
+            except Exception as exc:
+                backups.append({"name": name, "error": str(exc)})
+        return backups
+
+
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path != "/metrics.json":
@@ -78,6 +128,7 @@ data:
                 "memory": safe(read_meminfo),
                 "ssd": safe(lambda: read_disk("/host-root")),
                 "externalHdd": safe(lambda: read_disk("/host-external-hdd")),
+                "timeMachine": safe(read_time_machine),
             }
             body = json.dumps(data).encode()
             self.send_response(200)
