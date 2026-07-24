@@ -1,0 +1,33 @@
+# Applicatie voor node-metrics (geheugen/SSD/externe-HDD-cijfers voor
+# robberts-assistent), zelfde patroon als smb-timemachine-application.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: node-metrics
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/robberts-infrastructure.git
+    targetRevision: main
+    path: manifests/node-metrics
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: node-metrics
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        argocd.argoproj.io/managed-by: argocd
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

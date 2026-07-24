@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: node-metrics
+  labels:
+    # Vereist door de argocd-operator om resources in deze namespace te
+    # mogen beheren (zelfde patroon als de andere Applications).
+    argocd.argoproj.io/managed-by: argocd

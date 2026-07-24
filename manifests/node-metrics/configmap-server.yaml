@@ -1,0 +1,93 @@
+# Klein, dependency-vrij HTTP-serverscript (alleen Python-stdlib, geen pip
+# install nodig — draait zo in een kaal python-image) dat drie dingen
+# uitleest en als JSON teruggeeft op GET /metrics.json:
+#   - geheugen: /host-proc/meminfo (hostPath-mount van de node's /proc)
+#   - SSD (/dev/sda, de OS-schijf): statvfs op /host-root (hostPath-mount
+#     van de node's /etc — zelfde filesystem als /, dus identieke cijfers,
+#     met minder leestoegang dan de hele hostroot mounten)
+#   - externe USB-HDD: statvfs op /host-external-hdd (hostPath-mount van
+#     /var/mnt/external-hdd, zie ../machineconfigs/51-external-hdd-mount.yaml)
+#
+# Elke sectie is los ge-try/excepted: ontbreekt een mount of faalt een
+# uitlezing, dan komt er een {"error": "..."} voor dát onderdeel i.p.v. de
+# hele respons te laten crashen (zelfde soort per-sectie-foutafhandeling als
+# BriefingService.buildFresh in robberts-assistent).
+#
+# Geen authenticatie op deze endpoint — bewust: de Service is ClusterIP
+# (alleen bereikbaar binnen het cluster), niet extern geëxposeerd via een
+# Route. robberts-assistent-backend (in-cluster) kan 'm zo gewoon aanroepen
+# op http://node-metrics.node-metrics.svc.cluster.local:8080/metrics.json.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-metrics-server
+  namespace: node-metrics
+data:
+  serve.py: |
+    import http.server
+    import json
+    import os
+
+
+    def safe(fn):
+        try:
+            return fn()
+        except Exception as exc:
+            return {"error": str(exc)}
+
+
+    def read_meminfo():
+        values = {}
+        with open("/host-proc/meminfo") as f:
+            for line in f:
+                key, _, rest = line.partition(":")
+                parts = rest.strip().split()
+                if parts:
+                    values[key] = int(parts[0])  # kB
+        total_kb = values.get("MemTotal", 0)
+        available_kb = values.get("MemAvailable", 0)
+        used_kb = total_kb - available_kb
+        return {
+            "totalMb": total_kb // 1024,
+            "availableMb": available_kb // 1024,
+            "usedMb": used_kb // 1024,
+            "usedPercent": round(used_kb / total_kb * 100, 1) if total_kb else None,
+        }
+
+
+    def read_disk(path):
+        st = os.statvfs(path)
+        total = st.f_blocks * st.f_frsize
+        free = st.f_bavail * st.f_frsize
+        used = total - free
+        return {
+            "totalGb": round(total / 1e9, 1),
+            "usedGb": round(used / 1e9, 1),
+            "freeGb": round(free / 1e9, 1),
+            "usedPercent": round(used / total * 100, 1) if total else None,
+        }
+
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path != "/metrics.json":
+                self.send_response(404)
+                self.end_headers()
+                return
+            data = {
+                "memory": safe(read_meminfo),
+                "ssd": safe(lambda: read_disk("/host-root")),
+                "externalHdd": safe(lambda: read_disk("/host-external-hdd")),
+            }
+            body = json.dumps(data).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format, *args):
+            pass  # stille container-logs; fouten komen toch al terug in de JSON
+
+
+    http.server.HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()

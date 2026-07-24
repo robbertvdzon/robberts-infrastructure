@@ -1,0 +1,14 @@
+# ClusterIP (geen Route): alleen bereikbaar binnen het cluster, precies
+# genoeg voor robberts-assistent-backend om te scrapen.
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-metrics
+  namespace: node-metrics
+spec:
+  selector:
+    app: node-metrics
+  ports:
+    - port: 8080
+      targetPort: http
+      name: http

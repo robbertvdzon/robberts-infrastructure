@@ -1,0 +1,18 @@
+# Declaratieve versie van `oc adm policy add-scc-to-user privileged -z
+# node-metrics -n node-metrics` — zelfde patroon/reden als
+# ../smb-timemachine/rolebinding-scc.yaml: hostPath-mounts (hier: /proc,
+# /etc en /var/mnt/external-hdd, alle drie read-only) vereisen een SCC die
+# dat toestaat; de standaard `restricted-v2` SCC laat geen hostPath toe.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: system:openshift:scc:privileged
+  namespace: node-metrics
+subjects:
+  - kind: ServiceAccount
+    name: node-metrics
+    namespace: node-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:privileged

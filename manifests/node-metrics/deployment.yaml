@@ -1,0 +1,92 @@
+# Serveert geheugen-/SSD-/externe-HDD-gebruik van de node als klein JSON-
+# endpoint, voor robberts-assistent's OpenShift-koppeling (zie
+# ../../../robberts-assistent/docs/nightly-checks.md
+# "Uitbreidingsideeën voor de OpenShift-check zelf" — er is geen
+# Prometheus/node-exporter/metrics-server op dit cluster, dus dit is de
+# kleinste stap om die cijfers toch te krijgen, zonder een volledige
+# monitoring-stack).
+#
+# hostPath vereist de privileged SCC, zie rolebinding-scc.yaml
+# (zelfde patroon als ../smb-timemachine/deployment.yaml). Let op: dat is
+# een ander ding dan de container zelf `privileged: true` geven — dit
+# script leest alleen /proc/meminfo en doet statvfs op read-only mounts,
+# geen host-namespaces/capabilities nodig, dus die containersecuritycontext
+# staat er bewust NIET op (in tegenstelling tot smb-timemachine, waar
+# avahi/mDNS wél CAP_NET_RAW/CAP_NET_ADMIN nodig heeft). De SCC-RoleBinding
+# staat hostPath toe zonder dat de container zelf host-root-rechten krijgt.
+#
+# Image: kaal python:3-alpine — het serverscript (configmap-server.yaml)
+# gebruikt alleen de standaardbibliotheek, dus geen pip install/eigen image
+# nodig.
+#
+# Nog niet getest op het echte cluster — verifieer na deploy met:
+#   oc run -it --rm debug --image=curlimages/curl -n node-metrics --restart=Never \
+#     -- curl -s http://node-metrics.node-metrics.svc.cluster.local:8080/metrics.json
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-metrics
+  namespace: node-metrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-metrics
+  template:
+    metadata:
+      labels:
+        app: node-metrics
+    spec:
+      serviceAccountName: node-metrics
+      # Eén node in dit cluster, maar expliciet zodat dit niet per ongeluk
+      # ergens anders geschedule wordt als de cluster ooit groeit — zelfde
+      # nodeSelector als ../smb-timemachine/deployment.yaml.
+      nodeSelector:
+        kubernetes.io/hostname: sno.lab.vdzon.com
+      containers:
+        - name: node-metrics
+          image: python:3-alpine
+          command: ["python3", "/scripts/serve.py"]
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+            - name: host-proc
+              mountPath: /host-proc
+              readOnly: true
+            - name: host-root
+              mountPath: /host-root
+              readOnly: true
+            - name: host-external-hdd
+              mountPath: /host-external-hdd
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: script
+          configMap:
+            name: node-metrics-server
+        - name: host-proc
+          hostPath:
+            path: /proc
+            type: Directory
+        # statvfs geeft filesystem-brede stats terug, ongeacht welk pad je
+        # target — /etc zit op dezelfde filesystem als / (geen aparte
+        # partitie op deze node) en geeft dus identieke SSD-cijfers, met
+        # veel minder leestoegang dan de hele hostroot mounten.
+        - name: host-root
+          hostPath:
+            path: /etc
+            type: Directory
+        - name: host-external-hdd
+          hostPath:
+            path: /var/mnt/external-hdd
+            type: Directory

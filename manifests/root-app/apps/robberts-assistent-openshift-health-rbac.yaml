@@ -1,0 +1,38 @@
+# RBAC voor de OpenShift-gezondheids-koppeling van robberts-assistent
+# (nl.vdzon.robbertsassistent.openshift.KubernetesApiOpenShiftClient, zie
+# ../../../../robberts-assistent/docs/nightly-checks.md §"TODO — RBAC toepassen").
+#
+# Read-only, en bewust een losse, minimale ClusterRole — alleen de twee
+# resources die de check nodig heeft (updates beschikbaar? gedegradeerde
+# operators?), niets meer. Zelfde soort losse-identity-aanpak als
+# sf-preview-cleanup-rbac.yaml/agent-access: geen hergebruik van een bredere
+# rol, geen toegang tot secrets/pods/etc.
+#
+# De ServiceAccount zelf (`robberts-assistent-backend`) hoort NIET hier maar
+# in de robberts-assistent-repo zelf (deploy/base/), want die namespace wordt
+# al door ArgoCD's `robberts-assistent`-Application vanuit die repo
+# gesynct (prune+selfHeal) — dupliceren vanuit twee kanten geeft nodeloze
+# verwarring over wie de bron van waarheid is. Deze ClusterRoleBinding
+# verwijst er dus naar zonder 'm zelf aan te maken; hij wordt pas actief
+# zodra de ServiceAccount aan de andere kant bestaat.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: robberts-assistent-openshift-health
+rules:
+  - apiGroups: ["config.openshift.io"]
+    resources: ["clusterversions", "clusteroperators"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: robberts-assistent-openshift-health
+subjects:
+  - kind: ServiceAccount
+    name: robberts-assistent-backend
+    namespace: robberts-assistent
+roleRef:
+  kind: ClusterRole
+  name: robberts-assistent-openshift-health
+  apiGroup: rbac.authorization.k8s.io
