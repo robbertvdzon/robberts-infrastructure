@@ -28,6 +28,7 @@ docs/
   download-install-tools.md         — openshift-install/oc/ISO opnieuw downloaden + pull-secret in 1Password
   smb-timemachine-usage.md          — permanente mount, Time Machine, andere backups, schijf vervangen
   manual-external-steps.md          — dingen die NIET in een script zitten (DNS, Cloudflare, router)
+  public-app-onboarding.md           — nieuwe publieke app aansluiten op Cloudflare en Google Auth
 
 manifests/
   machineconfigs/                   — de 4 node-level configs die nu alleen los op het cluster stonden

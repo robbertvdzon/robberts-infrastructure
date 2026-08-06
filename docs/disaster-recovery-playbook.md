@@ -200,10 +200,11 @@ alleen dat ze niet per ongeluk gewijzigd zijn. Zie
 - [ ] One.com DNS: `A *.apps.sno.lab.vdzon.com`, `A api(-int).sno.lab.vdzon.com`
       → `192.168.178.64`; `AAAA *.vdzon.com` staat UIT.
 - [ ] Ziggo router: DHCP-reservation MAC `24:4B:FE:82:0D:4D` → `192.168.178.64`.
-- [ ] Cloudflare Tunnels: tokens zitten al in de (restored) SealedSecrets, dus
-      als stap 3 gelukt is hoef je hier niets te doen. Alleen als je NIET
-      restored hebt: nieuwe tunnel-tokens aanmaken (zie de app-repo's
-      `deploy/README.md`).
+- [ ] Gedeelde Cloudflare Tunnel: het token zit in de herstelde `newsfeed-api-keys`
+      SealedSecret en de connector draait als `personal-news-feed/cloudflared`. Als de
+      Sealed Secrets-restore gelukt is hoef je geen app-specifieke tunnels of tokens te maken;
+      controleer de Published application-routes en hun volgorde volgens
+      [public-app-onboarding.md](public-app-onboarding.md).
 - [ ] `/etc/hosts` op je MacBook, als Chrome/Safari de console niet laadt.
 
 ## 8. Eindverificatie

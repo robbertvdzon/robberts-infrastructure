@@ -34,11 +34,15 @@ toegang loopt via uitgaande Cloudflare Tunnels.
 
 ## Cloudflare Tunnels
 
-Elke app die extern bereikbaar moet zijn heeft een eigen tunnel (Zero Trust →
-Networks → Tunnels), met een `TUNNEL_TOKEN` die in de app's SealedSecret zit.
-Stappen om een nieuwe tunnel aan te maken staan in de `deploy/README.md` van
-de betreffende app-repo. Bij een reinstall met geslaagde sealed-secrets-key-
-restore hoef je hier niets te doen — de bestaande tokens blijven werken.
+Publieke apps delen één remotely managed tunnel met de connector `cloudflared` in namespace
+`personal-news-feed`. Een nieuwe app krijgt normaal alleen een Published application-route naar
+zijn interne Kubernetes-Service en geen eigen tunnel of token. De wildcard
+`*.vdzonsoftware.nl` voor PR-previews moet als laatste hostnameregel staan, vóór de verplichte
+404-catch-all.
+
+De volledige onboardingprocedure, inclusief de workaround voor de Cloudflare-interface zonder
+sorteeractie en de gedeelde Google Web OAuth-client, staat in
+[public-app-onboarding.md](public-app-onboarding.md).
 
 ## `/etc/hosts` op de MacBook (workaround, niet altijd nodig)
 
