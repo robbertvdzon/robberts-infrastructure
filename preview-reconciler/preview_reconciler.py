@@ -121,6 +121,9 @@ class KubernetesClient:
 
     def _request(self, method: str, path: str, body: object | None = None) -> object:
         data = json.dumps(body).encode() if body is not None else None
+        content_type = (
+            "application/merge-patch+json" if method == "PATCH" else "application/json"
+        )
         request = urllib.request.Request(
             f"{self.base_url}{path}",
             method=method,
@@ -128,7 +131,7 @@ class KubernetesClient:
             headers={
                 "Authorization": f"Bearer {self.token}",
                 "Accept": "application/json",
-                "Content-Type": "application/merge-patch+json",
+                "Content-Type": content_type,
             },
         )
         try:
@@ -157,7 +160,11 @@ class KubernetesClient:
         self._request(
             "DELETE",
             f"/api/v1/namespaces/{urllib.parse.quote(namespace)}",
-            {"propagationPolicy": "Foreground"},
+            {
+                "apiVersion": "v1",
+                "kind": "DeleteOptions",
+                "propagationPolicy": "Foreground",
+            },
         )
 
 

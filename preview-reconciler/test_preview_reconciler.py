@@ -9,6 +9,7 @@ from preview_reconciler import (
     REPOSITORY_LABEL,
     Metrics,
     Reconciler,
+    KubernetesClient,
 )
 
 
@@ -60,6 +61,22 @@ class FakeKubernetes:
 
 
 class ReconcilerTest(unittest.TestCase):
+    def test_delete_uses_kubernetes_delete_options(self):
+        calls = []
+        client = object.__new__(KubernetesClient)
+        client._request = lambda method, path, body: calls.append((method, path, body))
+
+        client.delete_namespace("hkh-pr-42")
+
+        self.assertEqual(
+            [(
+                "DELETE",
+                "/api/v1/namespaces/hkh-pr-42",
+                {"apiVersion": "v1", "kind": "DeleteOptions", "propagationPolicy": "Foreground"},
+            )],
+            calls,
+        )
+
     def test_github_outage_never_mutates_cluster(self):
         kube = FakeKubernetes([namespace("hkh-pr-7", "hkh", 7)])
         Reconciler(FakeGitHub(fail=True), kube, Metrics(), 60, lambda: 100).run_once()
