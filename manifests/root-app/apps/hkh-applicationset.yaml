@@ -1,0 +1,80 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: hkh-previews
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+  generators:
+    - pullRequest:
+        github:
+          owner: robbertvdzon
+          repo: hkh
+          labels: []
+          tokenRef:
+            secretName: github-pr-token
+            key: token
+        requeueAfterSeconds: 180
+  template:
+    metadata:
+      name: 'hkh-preview-{{.number}}'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+      labels:
+        app.kubernetes.io/part-of: hkh
+        app.kubernetes.io/managed-by: argocd
+        preview-pr: '{{.number}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/robbertvdzon/hkh.git
+        targetRevision: '{{.head_sha}}'
+        path: deploy/overlays/preview
+        kustomize:
+          namespace: 'hkh-pr-{{.number}}'
+          patches:
+            - target:
+                group: route.openshift.io
+                version: v1
+                kind: Route
+                name: frontend
+              patch: |-
+                - op: replace
+                  path: /spec/host
+                  value: 'hkh-pr-{{.number}}.vdzonsoftware.nl'
+            - target:
+                group: route.openshift.io
+                version: v1
+                kind: Route
+                name: admin
+              patch: |-
+                - op: replace
+                  path: /spec/host
+                  value: 'hkh-admin-pr-{{.number}}.vdzonsoftware.nl'
+          images:
+            - 'backend-image=ghcr.io/robbertvdzon/hkh-backend:sha-{{.head_short_sha_7}}'
+            - 'frontend-image=ghcr.io/robbertvdzon/hkh-frontend:sha-{{.head_short_sha_7}}'
+            - 'admin-image=ghcr.io/robbertvdzon/hkh-admin:sha-{{.head_short_sha_7}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'hkh-pr-{{.number}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        managedNamespaceMetadata:
+          labels:
+            argocd.argoproj.io/managed-by: argocd
+            preview.vdzonsoftware.nl/managed-by: preview-reconciler
+            preview.vdzonsoftware.nl/repository: hkh
+            preview.vdzonsoftware.nl/pr-number: '{{.number}}'
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 5m
