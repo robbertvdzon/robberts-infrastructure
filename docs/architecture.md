@@ -25,9 +25,14 @@
 
 ## Netwerklaag / toegang van buiten
 
-Geen port-forwarding op de router. Elke app die van buiten bereikbaar moet zijn draait een
-eigen `cloudflared`-pod (Cloudflare Tunnel, uitgaande verbinding) met een public hostname op
-`vdzonsoftware.nl`. DNS voor dat domein loopt via one.com.
+Geen port-forwarding op de router. Publieke apps delen één remotely managed Cloudflare Tunnel met
+de `cloudflared`-Deployment in namespace `personal-news-feed`. De tunnel maakt een uitgaande
+verbinding. `*.vdzonsoftware.nl` wordt naar de interne OpenShift-ingressrouter gestuurd;
+declaratieve OpenShift Routes kiezen daarna op basis van de behouden Host-header de juiste
+productie- of previewservice. Tijdens de migratie bestaan nog specifieke Cloudflare-routes als
+rollbackpad en wijst de wildcard nog naar de oude Newsfeed-previewrouter. DNS voor
+`vdzonsoftware.nl` loopt via Cloudflare; zie
+[public-app-onboarding.md](public-app-onboarding.md) voor nieuwe apps en Google Auth.
 
 **One.com DNS-gotcha (zie [manual-external-steps.md](manual-external-steps.md)):** er staat een
 wildcard `A *.vdzon.com` naar one.com-hosting. Met `ndots:5` in pod-`resolv.conf` en een

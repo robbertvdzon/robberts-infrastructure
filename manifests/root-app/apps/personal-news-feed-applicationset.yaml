@@ -62,6 +62,16 @@ spec:
           #   - image-tags worden de SHA van deze PR (zodat preview altijd
           #     de juiste build draait)
           namespace: 'pnf-pr-{{.number}}'
+          patches:
+            - target:
+                group: route.openshift.io
+                version: v1
+                kind: Route
+                name: frontend
+              patch: |-
+                - op: replace
+                  path: /spec/host
+                  value: 'pnf-pr-{{.number}}.vdzonsoftware.nl'
           images:
             # PR-specifieke image-tags. De build-workflow tagt elke
             # PR-commit met sha-<short>. `head_short_sha_7` is een ingebouwde
