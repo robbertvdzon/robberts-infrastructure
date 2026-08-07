@@ -2,8 +2,8 @@
 
 Dit document beschrijft de actuele, gedeelde inrichting voor een nieuwe webapp op het
 thuis-OpenShift-cluster. Het voorkomt dat bij iedere app opnieuw tunnels of Google-projecten
-worden aangemaakt. Laatste praktijkcontrole: 2026-08-06, tijdens de aansluiting van `hkh` en
-`hkh-autopilot`.
+worden aangemaakt. Laatste praktijkcontrole: 2026-08-07, tijdens de voorbereiding van de
+gezamenlijke OpenShift-ingressroute.
 
 ## 1. Cloudflare: de bestaande gedeelde tunnel gebruiken
 
@@ -16,42 +16,51 @@ Een nieuwe app krijgt daarom normaal gesproken:
 
 - geen eigen tunnel;
 - geen nieuw `TUNNEL_TOKEN`;
-- één Published application-route per publieke hostname in de bestaande tunnel;
-- als Service URL de volledige interne Kubernetes-Service-FQDN, bijvoorbeeld
-  `http://frontend.mijn-namespace.svc.cluster.local:8080`.
+- geen eigen Published application-route in Cloudflare;
+- een Git-managed OpenShift `Route` met de volledige publieke hostnaam;
+- automatisch bereik via de bestaande wildcard zodra die naar OpenShift ingress wijst.
 
 `RA_HOME_ASSISTENT_TOKEN` uit Robberts Assistent is geen Cloudflare-token. Het is een Home
 Assistant API-token en mag nooit voor tunnelconfiguratie worden gebruikt.
 
-### Wildcardregel moet de laatste hostnameregel zijn
+### Eén wildcard naar OpenShift ingress
 
-De tunnel bevat `*.vdzonsoftware.nl`, gericht op
-`http://preview-router.personal-news-feed.svc.cluster.local:80` voor PR-previews. `cloudflared`
-evalueert ingressregels van boven naar beneden en gebruikt de eerste match. De wildcard moet dus
-na alle specifieke hostnamen staan; alleen de verplichte `http_status:404`-catch-all volgt erna.
-
-De huidige Cloudflare-interface voegt een nieuwe Published application-route onderaan toe, maar
-biedt geen zichtbare sorteeractie. Staat de wildcard al in de lijst, gebruik dan deze procedure:
-
-1. noteer Service URL en origin-instellingen van `*.vdzonsoftware.nl`;
-2. verwijder tijdelijk alleen deze wildcardroute;
-3. voeg alle nieuwe specifieke hostnamen toe;
-4. maak `*.vdzonsoftware.nl` als laatste opnieuw aan met exact dezelfde instellingen;
-5. controleer dat de connector een nieuwe configuratie heeft ontvangen.
-
-Tijdens stap 2-4 zijn alleen PR-previewhostnamen kort niet bereikbaar. DNS-specificiteit lost dit
-niet op: een specifiek DNS-record kiest wel de tunnel, maar binnen diezelfde tunnel blijft de
-volgorde van de ingressregels bepalend.
-
-Voor HKH is de gewenste configuratie:
+De gewenste Cloudflare-configuratie bevat één algemene applicatieregel:
 
 | Publieke hostname | Interne Service URL |
 |---|---|
-| `hkh.vdzonsoftware.nl` | `http://frontend.hkh.svc.cluster.local:8080` |
-| `hkh-admin.vdzonsoftware.nl` | `http://admin.hkh.svc.cluster.local:8080` |
-| `hkh-autopilot.vdzonsoftware.nl` | `http://frontend.hkh-autopilot.svc.cluster.local:8080` |
-| `hkh-autopilot-admin.vdzonsoftware.nl` | `http://admin.hkh-autopilot.svc.cluster.local:8080` |
-| `*.vdzonsoftware.nl` | `http://preview-router.personal-news-feed.svc.cluster.local:80` — laatste hostnameregel |
+| `*.vdzonsoftware.nl` | `http://router-internal-default.openshift-ingress.svc.cluster.local:80` |
+
+Laat **HTTP Host Header** op de standaardwaarde staan. Dan behoudt Cloudflare de oorspronkelijke
+publieke hostnaam en kan OpenShift de juiste declaratieve `Route.spec.host` selecteren. In de
+nieuwe Cloudflare-route-interface is hiervoor geen extra veld nodig.
+
+De browserverbinding en de Cloudflare Tunnel zijn versleuteld. Alleen het laatste stuk van de
+connector naar de OpenShift-router gebruikt HTTP binnen hetzelfde cluster, net als de bestaande
+rechtstreekse servicekoppelingen. De publieke OpenShift Routes gebruiken daarom
+`insecureEdgeTerminationPolicy: Allow`. Hiermee zijn geen uitgeschakelde certificaatcontroles of
+extra origininstellingen in Cloudflare nodig.
+
+Tijdens de overgang blijven de bestaande specifieke Cloudflare-routes als rollbackpad staan. Ze
+worden pas één voor één verwijderd nadat dezelfde hostname via OpenShift ingress is getest.
+
+### Veilige canary vóór de wildcardomschakeling
+
+1. Maak in OpenShift tijdelijk een Route met host
+   `wildcard-ingress-canary.vdzonsoftware.nl`; maak hiervoor juist geen specifieke
+   Cloudflare-route.
+2. Wijzig de service van de bestaande `*.vdzonsoftware.nl`-regel naar
+   `http://router-internal-default.openshift-ingress.svc.cluster.local:80`.
+3. Er zijn geen aanvullende TLS- of Host-headerinstellingen nodig.
+4. Controleer dat de canary via de wildcard de applicatie bereikt die door de gelijknamige
+   OpenShift Route is aangewezen. De bestaande specifieke productieroutes blijven tijdens deze
+   test hun huidige services gebruiken.
+5. Zet bij een fout de wildcardservice direct terug naar
+   `http://preview-router.personal-news-feed.svc.cluster.local:80`.
+6. Deploy daarna de Git-managed productie- en previewroutes en controleer alle productiehosts en
+   minimaal één previewhost.
+7. Verwijder de OpenShift-canary en daarna één voor één de overbodige specifieke
+   Cloudflare-routes.
 
 ### Controleren
 
@@ -60,9 +69,10 @@ curl -i https://mijn-app.vdzonsoftware.nl/
 oc logs -n personal-news-feed deploy/cloudflared --since=10m
 ```
 
-Een antwoord `Onbekende preview-hostname` komt van de preview-router en bewijst dat de wildcard
-de aanvraag ten onrechte vóór de specifieke regel heeft onderschept. Controleer ook zorgvuldig op
-typefouten in de hostname; `khk` en `hkh` zijn verschillende DNS-records.
+Een bekende host hoort de bijbehorende applicatie terug te geven. Een onbekende wildcardhost hoort
+een OpenShift-routerfout (`503` in de huidige routerconfiguratie) te geven en nooit stilzwijgend bij
+een andere applicatie uit te komen.
+Controleer ook zorgvuldig op typefouten; `khk` en `hkh` zijn verschillende DNS-records.
 
 ## 2. Google Auth: bestaand project en Web OAuth-client hergebruiken
 
@@ -113,10 +123,9 @@ met de juiste audience, een geverifieerd e-mailadres en een e-mailadres uit de a
 
 ## 3. Onboardingchecklist
 
-- [ ] Publieke hostname en interne Service URL bepaald.
-- [ ] Specifieke tunnelroute toegevoegd vóór de wildcard.
-- [ ] Wildcard `*.vdzonsoftware.nl` staat als laatste hostnameregel, vóór de 404-catch-all.
-- [ ] Publieke URL geeft de bedoelde app en niet `Onbekende preview-hostname`.
+- [ ] Publieke hostname als `Route.spec.host` in de applicatierepository vastgelegd.
+- [ ] Wildcard wijst naar de interne OpenShift-ingressrouter en behoudt de Host-header.
+- [ ] Publieke URL geeft de bedoelde app; een onbekende host geeft een routerfout.
 - [ ] Admin-origin toegevoegd aan de bestaande Google Web OAuth-client.
 - [ ] Beheeraccount staat zo nodig als Google test user geregistreerd.
 - [ ] Google client-ID, allowlist en CORS-origin via SealedSecret/runtimeconfig gezet.

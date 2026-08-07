@@ -35,13 +35,11 @@ toegang loopt via uitgaande Cloudflare Tunnels.
 ## Cloudflare Tunnels
 
 Publieke apps delen één remotely managed tunnel met de connector `cloudflared` in namespace
-`personal-news-feed`. Een nieuwe app krijgt normaal alleen een Published application-route naar
-zijn interne Kubernetes-Service en geen eigen tunnel of token. De wildcard
-`*.vdzonsoftware.nl` voor PR-previews moet als laatste hostnameregel staan, vóór de verplichte
-404-catch-all.
+`personal-news-feed`. Een nieuwe app krijgt geen eigen tunnel of token. De algemene wildcard
+`*.vdzonsoftware.nl` wijst na de lopende migratie naar de interne OpenShift-ingressrouter; iedere
+app declareert de publieke hostnaam in een Git-managed OpenShift Route.
 
-De volledige onboardingprocedure, inclusief de workaround voor de Cloudflare-interface zonder
-sorteeractie en de gedeelde Google Web OAuth-client, staat in
+De volledige onboarding- en canaryprocedure en de gedeelde Google Web OAuth-client staan in
 [public-app-onboarding.md](public-app-onboarding.md).
 
 ## `/etc/hosts` op de MacBook (workaround, niet altijd nodig)
