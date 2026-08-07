@@ -27,7 +27,7 @@ spec:
       serviceAccountName: preview-ns-labeller
       containers:
         - name: labeller
-          image: ghcr.io/robbertvdzon/preview-ns-labeller:sha-94b1d9d
+          image: ghcr.io/robbertvdzon/preview-ns-labeller:sha-954d5f3
           imagePullPolicy: Always
           env:
             - name: ARGOCD_NS
