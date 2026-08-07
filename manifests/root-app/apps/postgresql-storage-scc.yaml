@@ -1,0 +1,80 @@
+# Local-path volumes are hostPath-backed and are not relabelled by the
+# provisioner. These narrowly scoped SCCs let PostgreSQL use only the storage
+# types it needs while keeping privileged containers, host networking and
+# privilege escalation disabled.
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: local-path-postgresql
+  annotations:
+    kubernetes.io/description: >-
+      Allows non-root PostgreSQL pods to use local-path PVCs with the host
+      SELinux label. Grant only to dedicated database service accounts.
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: []
+defaultAddCapabilities: []
+requiredDropCapabilities:
+  - ALL
+readOnlyRootFilesystem: false
+runAsUser:
+  type: MustRunAsRange
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+seccompProfiles:
+  - runtime/default
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+---
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: postgresql-host-backup
+  annotations:
+    kubernetes.io/description: >-
+      Allows a non-root pg_dump CronJob to write to the external backup disk.
+      Grant only to dedicated PostgreSQL backup service accounts.
+allowHostDirVolumePlugin: true
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: false
+allowPrivilegedContainer: false
+allowedCapabilities: []
+defaultAddCapabilities: []
+requiredDropCapabilities:
+  - ALL
+readOnlyRootFilesystem: false
+runAsUser:
+  type: MustRunAs
+  uid: 1000
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+seccompProfiles:
+  - runtime/default
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - hostPath
+  - projected
+  - secret
