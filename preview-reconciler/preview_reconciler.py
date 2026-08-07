@@ -23,6 +23,10 @@ REPOSITORY_LABEL = "preview.vdzonsoftware.nl/repository"
 PR_LABEL = "preview.vdzonsoftware.nl/pr-number"
 ORPHAN_AT = "preview.vdzonsoftware.nl/orphan-observed-at"
 ORPHAN_COUNT = "preview.vdzonsoftware.nl/orphan-observation-count"
+ARGO_RESOURCE_FINALIZERS = {
+    "resources-finalizer.argocd.argoproj.io",
+    "resources-finalizer.argocd.argoproj.io/background",
+}
 
 
 @dataclass(frozen=True)
@@ -48,6 +52,7 @@ class Metrics:
         self.cleanup_failures_total = 0
         self.github_failures_total = 0
         self.invalid_namespaces_total = 0
+        self.applications_finalized_total = 0
 
     def update_gauges(self, active: int, orphaned: int, oldest: float) -> None:
         with self._lock:
@@ -167,6 +172,32 @@ class KubernetesClient:
             },
         )
 
+    def preview_applications(self) -> list[dict]:
+        selector = urllib.parse.quote("preview-pr")
+        response = self._request(
+            "GET",
+            f"/apis/argoproj.io/v1alpha1/namespaces/argocd/applications?labelSelector={selector}",
+        )
+        if not isinstance(response, dict):
+            raise RuntimeError("Unexpected ArgoCD application response")
+        return list(response.get("items", []))
+
+    def namespace_exists(self, namespace: str) -> bool:
+        try:
+            self._request("GET", f"/api/v1/namespaces/{urllib.parse.quote(namespace)}")
+            return True
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return False
+            raise
+
+    def patch_application_finalizers(self, application: str, finalizers: list[str]) -> None:
+        self._request(
+            "PATCH",
+            f"/apis/argoproj.io/v1alpha1/namespaces/argocd/applications/{urllib.parse.quote(application)}",
+            {"metadata": {"finalizers": finalizers}},
+        )
+
 
 def identify(namespace: dict) -> tuple[Rule, int] | None:
     metadata = namespace.get("metadata", {})
@@ -184,6 +215,20 @@ def identify(namespace: dict) -> tuple[Rule, int] | None:
         if labels.get(PR_LABEL) != str(number):
             return None
         return rule, number
+    return None
+
+
+def identify_deleting_application(application: dict) -> tuple[str, str] | None:
+    metadata = application.get("metadata", {})
+    if not metadata.get("deletionTimestamp"):
+        return None
+    labels = metadata.get("labels", {}) or {}
+    destination = application.get("spec", {}).get("destination", {}) or {}
+    namespace = str(destination.get("namespace", ""))
+    for rule in RULES:
+        match = rule.pattern.fullmatch(namespace)
+        if match and labels.get("preview-pr") == match.group(1):
+            return str(metadata.get("name", "")), namespace
     return None
 
 
@@ -306,8 +351,43 @@ class Reconciler:
                 self.metrics.increment("cleanup_failures_total")
                 log("namespace_delete_failed", namespace=name, error=type(error).__name__)
 
+        self._reap_stuck_applications()
+
         self.metrics.update_gauges(active, orphaned, oldest)
         log("reconciliation_complete", active=active, orphaned=orphaned)
+
+    def _reap_stuck_applications(self) -> None:
+        try:
+            applications = self.kubernetes.preview_applications()
+        except Exception as error:
+            self.metrics.increment("cleanup_failures_total")
+            log("application_list_failed", error=type(error).__name__)
+            return
+
+        for application in applications:
+            identity = identify_deleting_application(application)
+            if identity is None:
+                continue
+            name, namespace = identity
+            metadata = application.get("metadata", {})
+            finalizers = list(metadata.get("finalizers", []) or [])
+            remaining = [item for item in finalizers if item not in ARGO_RESOURCE_FINALIZERS]
+            if remaining == finalizers:
+                continue
+            try:
+                if self.kubernetes.namespace_exists(namespace):
+                    continue
+                self.kubernetes.patch_application_finalizers(name, remaining)
+                self.metrics.increment("applications_finalized_total")
+                log("stuck_application_finalized", application=name, namespace=namespace)
+            except Exception as error:
+                self.metrics.increment("cleanup_failures_total")
+                log(
+                    "application_finalize_failed",
+                    application=name,
+                    namespace=namespace,
+                    error=type(error).__name__,
+                )
 
 
 def start_metrics_server(metrics: Metrics, port: int) -> ThreadingHTTPServer:
