@@ -34,11 +34,13 @@ toegang loopt via uitgaande Cloudflare Tunnels.
 
 ## Cloudflare Tunnels
 
-Elke app die extern bereikbaar moet zijn heeft een eigen tunnel (Zero Trust →
-Networks → Tunnels), met een `TUNNEL_TOKEN` die in de app's SealedSecret zit.
-Stappen om een nieuwe tunnel aan te maken staan in de `deploy/README.md` van
-de betreffende app-repo. Bij een reinstall met geslaagde sealed-secrets-key-
-restore hoef je hier niets te doen — de bestaande tokens blijven werken.
+Publieke apps delen één remotely managed tunnel met de connector `cloudflared` in namespace
+`personal-news-feed`. Een nieuwe app krijgt geen eigen tunnel of token. De algemene wildcard
+`*.vdzonsoftware.nl` wijst na de lopende migratie naar de interne OpenShift-ingressrouter; iedere
+app declareert de publieke hostnaam in een Git-managed OpenShift Route.
+
+De volledige onboarding- en canaryprocedure en de gedeelde Google Web OAuth-client staan in
+[public-app-onboarding.md](public-app-onboarding.md).
 
 ## `/etc/hosts` op de MacBook (workaround, niet altijd nodig)
 

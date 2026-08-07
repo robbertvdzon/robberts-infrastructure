@@ -27,7 +27,7 @@ spec:
       serviceAccountName: preview-ns-labeller
       containers:
         - name: labeller
-          image: ghcr.io/robbertvdzon/preview-ns-labeller:main
+          image: ghcr.io/robbertvdzon/preview-ns-labeller:sha-94b1d9d
           imagePullPolicy: Always
           env:
             - name: ARGOCD_NS
@@ -36,6 +36,13 @@ spec:
               value: "pnf-pr-"
             - name: INTERVAL
               value: "30"
+            # Fail-closed GitHub-check vóór het aanmaken of verwijderen van
+            # een externe Neon-previewbranch.
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-pr-token
+                  key: token
             # KAN-55: Neon REST API auth + project. De Secret `newsfeed-api-keys`
             # wordt door de reflector naar de argocd-namespace gespiegeld
             # (zie sealed-secret-api-keys.yaml — reflection-auto-namespaces
