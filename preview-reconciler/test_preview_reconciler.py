@@ -10,6 +10,7 @@ from preview_reconciler import (
     Metrics,
     Reconciler,
     KubernetesClient,
+    identify_deleting_application,
 )
 
 
@@ -44,10 +45,13 @@ class FakeGitHub:
 
 
 class FakeKubernetes:
-    def __init__(self, namespaces):
+    def __init__(self, namespaces, applications=None, existing_namespaces=None):
         self.namespaces = namespaces
+        self.applications = applications or []
+        self.existing_namespaces = set(existing_namespaces or [])
         self.patches = []
         self.deleted = []
+        self.finalizer_patches = []
 
     def owned_namespaces(self):
         return self.namespaces
@@ -58,6 +62,15 @@ class FakeKubernetes:
     def delete_namespace(self, name):
         if name not in self.deleted:
             self.deleted.append(name)
+
+    def preview_applications(self):
+        return self.applications
+
+    def namespace_exists(self, name):
+        return name in self.existing_namespaces
+
+    def patch_application_finalizers(self, name, finalizers):
+        self.finalizer_patches.append((name, finalizers))
 
 
 class ReconcilerTest(unittest.TestCase):
@@ -124,6 +137,59 @@ class ReconcilerTest(unittest.TestCase):
         kube.namespaces = []
         reconciler.run_once()
         self.assertEqual(["pnf-pr-9"], kube.deleted)
+
+    def test_identifies_only_deleting_preview_applications(self):
+        application = {
+            "metadata": {
+                "name": "hkh-preview-42",
+                "deletionTimestamp": "2026-08-07T10:00:00Z",
+                "labels": {"preview-pr": "42"},
+            },
+            "spec": {"destination": {"namespace": "hkh-pr-42"}},
+        }
+        self.assertEqual(
+            ("hkh-preview-42", "hkh-pr-42"),
+            identify_deleting_application(application),
+        )
+        application["metadata"].pop("deletionTimestamp")
+        self.assertIsNone(identify_deleting_application(application))
+
+    def test_reaps_argocd_finalizer_only_after_namespace_is_gone(self):
+        application = {
+            "metadata": {
+                "name": "hkh-preview-42",
+                "deletionTimestamp": "2026-08-07T10:00:00Z",
+                "labels": {"preview-pr": "42"},
+                "finalizers": [
+                    "resources-finalizer.argocd.argoproj.io",
+                    "keep.example/finalizer",
+                ],
+            },
+            "spec": {"destination": {"namespace": "hkh-pr-42"}},
+        }
+        kube = FakeKubernetes([], [application])
+        Reconciler(FakeGitHub(), kube, Metrics(), 60, lambda: 100).run_once()
+        self.assertEqual([("hkh-preview-42", ["keep.example/finalizer"])], kube.finalizer_patches)
+
+        kube = FakeKubernetes([], [application], {"hkh-pr-42"})
+        Reconciler(FakeGitHub(), kube, Metrics(), 60, lambda: 100).run_once()
+        self.assertEqual([], kube.finalizer_patches)
+
+    def test_finalizer_patch_uses_argocd_namespaced_api(self):
+        calls = []
+        client = object.__new__(KubernetesClient)
+        client._request = lambda method, path, body: calls.append((method, path, body))
+
+        client.patch_application_finalizers("hkh-preview-42", [])
+
+        self.assertEqual(
+            [(
+                "PATCH",
+                "/apis/argoproj.io/v1alpha1/namespaces/argocd/applications/hkh-preview-42",
+                {"metadata": {"finalizers": []}},
+            )],
+            calls,
+        )
 
 
 if __name__ == "__main__":
