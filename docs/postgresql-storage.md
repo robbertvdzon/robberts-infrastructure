@@ -10,6 +10,10 @@ Status: vastgesteld op 7 augustus 2026 voor HKH, HKH Autopilot en Product Factor
   storageclass. Live inventarisatie bevestigt dat deze provisioner onder
   `/var/lib/local-path-provisioner` op de XFS-SSD staat (circa 953GB, 839GB vrij tijdens de
   inventarisatie).
+- De local-path-provisioner relabelt zijn hostPath-volumes niet voor OpenShift SELinux. Daarom
+  gebruikt iedere database een eigen ServiceAccount met de beperkte `local-path-postgresql`-SCC.
+  Deze SCC staat alleen PVC-volumes toe; privileged containers, host networking en privilege
+  escalation blijven uitgeschakeld.
 - Iedere HKH-pull-requestpreview krijgt een kleinere eigen PVC via dezelfde storageclass. De hele
   namespace, inclusief PVC en PV (`reclaimPolicy: Delete`), blijft disposable.
 - Iedere productiedatabase maakt dagelijks een PostgreSQL custom-format dump met checksum naar
@@ -38,5 +42,6 @@ Status: vastgesteld op 7 augustus 2026 voor HKH, HKH Autopilot en Product Factor
 6. Start een handmatige backupjob en herstel de gemaakte HDD-dump naar een tijdelijke database.
 
 Secrets blijven in de bestaande applicatie-Secrets. De backup-CronJob gebruikt per namespace een
-eigen ServiceAccount met uitsluitend de `hostmount-anyuid`-SCC om de backupmap te mounten; het
-account krijgt geen Kubernetes-API-rechten.
+eigen ServiceAccount met uitsluitend de beperkte `postgresql-host-backup`-SCC om de backupmap te
+mounten; het account krijgt geen Kubernetes-API-rechten. De database-ServiceAccount krijgt deze
+hostPath-SCC nadrukkelijk niet.
