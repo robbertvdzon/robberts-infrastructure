@@ -1,10 +1,8 @@
 # ArgoCD ApplicationSet: spint per open PR (branch ai/*) een eigen
 # preview-deploy op. Bij PR-merge of -close pruned ArgoCD de gegenereerde
-# Application + z'n resources netjes — MAAR NIET de namespace zelf
-# (CreateNamespace=true wordt niet als resource getrackt, dus nooit
-# geprund). Zie ../../../docs/cluster-inventory.md §8 voor de volledige
-# uitleg — dit veroorzaakte 29 stale pnf-pr-*-namespaces (opgeruimd
-# 2026-07-08), nog niet structureel gefixt.
+# Application + z'n resources netjes. De namespace zelf wordt niet door
+# ArgoCD getrackt; preview-reconciler.yaml verwijdert die daarom pas na een
+# GitHub-check, graceperiode en twee opeenvolgende observaties.
 #
 # Verhuisd hierheen vanuit personal-news-feed-by-claude-code/deploy/
 # applicationset.yaml (2026-07-08, app-of-apps-consolidatie) — sync't nu
