@@ -36,6 +36,17 @@ spec:
           namespace: 'hkh-autopilot-pr-{{.number}}'
           patches:
             - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: backend
+              patch: |-
+                - op: add
+                  path: /spec/template/spec/containers/0/env/-
+                  value:
+                    name: HKH_PREVIEW_PR_NUMBER
+                    value: '{{.number}}'
+            - target:
                 group: route.openshift.io
                 version: v1
                 kind: Route

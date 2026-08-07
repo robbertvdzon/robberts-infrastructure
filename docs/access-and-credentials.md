@@ -131,3 +131,68 @@ oc auth can-i get secrets -n software-factory --kubeconfig=$OUT   # no
 3. `SF_KUBECONFIG` in `software-factory/secrets.env` blijft hetzelfde pad
    wijzen (`~/okd-sno/sno/auth/kubeconfig-agent-readonly`) — alleen de
    inhoud van dat bestand is nieuw na een reinstall.
+4. Hetzelfde geldt voor `kubeconfig-preview-cleanup` (zie hieronder) — ook
+   dat bestand moet je na een reinstall opnieuw genereren, `root-apps`
+   herstelt alleen de ServiceAccount + token-Secret op het cluster, niet het
+   lokale bestand.
+
+## Niveau 3: `sf-preview-cleanup` (aparte identity, alleen namespace-delete)
+
+**Credential**: ServiceAccount `sf-preview-cleanup` in namespace
+`software-factory` (manifest in
+[`../manifests/root-app/apps/sf-preview-cleanup-rbac.yaml`](../manifests/root-app/apps/sf-preview-cleanup-rbac.yaml)),
+gebonden aan een eigen ClusterRole met **alleen** `get/list/delete` op
+`namespaces` en op `projects.openshift.io` — geen secrets, pods, deployments,
+niets anders. Bewust los van `claude-agent` (niveau 2): die twee identities
+mogen niet gedeeld worden, dit is puur voor
+`OcPreviewEnvironmentCleaner.kt` (software-factory) dat na een merge/
+re-implement `oc delete project <pnf-pr-N>` draait. Zie de commentaren in het
+manifest voor de achtergrond (de 29 verweesde `pnf-pr-*`-namespaces, zie
+[cluster-inventory.md](cluster-inventory.md) §8).
+
+**Waar gebruikt**: `SF_PREVIEW_CLEANUP_KUBECONFIG` in
+`software-factory/secrets.env` wijst naar
+`~/okd-sno/sno/auth/kubeconfig-preview-cleanup/kubeconfig`.
+
+**Het bestand (opnieuw) genereren** — zelfde patroon als
+`kubeconfig-agent-readonly` hierboven, maar tegen de `sf-preview-cleanup`-SA
+in namespace `software-factory`. Vereist: ingelogd met het **admin**-account
+én `oc apply -f manifests/root-app/apps/sf-preview-cleanup-rbac.yaml` (of een
+volledige ArgoCD-sync) al gedraaid.
+
+```bash
+export KUBECONFIG=~/okd-sno/sno/auth/kubeconfig   # admin
+SA_NS=software-factory
+SECRET=sf-preview-cleanup-token
+OUT_DIR=~/okd-sno/sno/auth/kubeconfig-preview-cleanup
+OUT="$OUT_DIR/kubeconfig"
+mkdir -p "$OUT_DIR"
+
+SERVER=$(oc whoami --show-server)                 # https://api.sno.lab.vdzon.com:6443
+TOKEN=$(oc get secret "$SECRET" -n "$SA_NS" -o jsonpath='{.data.token}' | base64 -d)
+oc get secret "$SECRET" -n "$SA_NS" -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/sf-preview-cleanup-ca.crt
+
+rm -f "$OUT"
+oc config set-cluster sno --server="$SERVER" \
+   --certificate-authority=/tmp/sf-preview-cleanup-ca.crt --embed-certs=true --kubeconfig="$OUT"
+oc config set-credentials sf-preview-cleanup --token="$TOKEN" --kubeconfig="$OUT"
+oc config set-context sf-preview-cleanup --cluster=sno --user=sf-preview-cleanup \
+   --namespace=software-factory --kubeconfig="$OUT"
+oc config use-context sf-preview-cleanup --kubeconfig="$OUT"
+rm -f /tmp/sf-preview-cleanup-ca.crt
+chmod 600 "$OUT"
+```
+
+Verifieer (moet exact dit geven):
+```bash
+KUBECONFIG=~/okd-sno/sno/auth/kubeconfig-preview-cleanup/kubeconfig oc whoami
+# system:serviceaccount:software-factory:sf-preview-cleanup
+oc auth can-i delete projects -n software-factory   --kubeconfig=$OUT   # yes
+oc auth can-i get secrets -n software-factory --kubeconfig=$OUT   # no
+```
+
+**Rotatie**: zelfde als `kubeconfig-agent-readonly` — het token verloopt
+niet, bij lek/rotatie verwijder je de `sf-preview-cleanup-token` Secret,
+laat ArgoCD 'm herscheppen (of `oc apply -f
+manifests/root-app/apps/sf-preview-cleanup-rbac.yaml`), en herbouw het
+bestand met het recept hierboven.
