@@ -4,8 +4,9 @@
 
 - ASUS PRIME H410M-K, Intel/AMD64
 - 32GB RAM
-- `/dev/sda` — 240GB SATA SSD, OS-schijf (RHCOS/SCOS)
-- Externe USB-HDD ("Verbatim Desktop HDD 3.0", 3.7TB, exFAT), gemount op
+- `/var` — circa 1TB XFS SSD-partitie (live op 2026-08-07: `/dev/sdb4`, 953GB), met daaronder
+  `/var/lib/local-path-provisioner` voor Kubernetes-PVC's;
+- Externe USB-HDD (16TB nominaal; live 15TB op `/dev/sda2`, exFAT), gemount op
   `/var/mnt/external-hdd` — de Time Machine-bestemming (zie
   [../manifests/smb-timemachine/README.md](../manifests/smb-timemachine/README.md)). Sinds
   2026-07-08 de definitieve opzet; vervangt de interne 4TB-schijf (`/dev/sdb`, was gemount op
@@ -20,7 +21,7 @@
 - Cluster-naam `sno`, base domain `lab.vdzon.com`
 - OVN-Kubernetes, IPv4-only (IPv6 bewust uitgezet — zie install-quirks hieronder)
 - Enige StorageClass: `local-path` (rancher.io/local-path), path `/var/lib/local-path-provisioner`
-  op de **kleine SSD** — geen enkele schijf (extern of voormalig intern) wordt door
+  op de **SSD** — geen enkele schijf (extern of voormalig intern) wordt door
   Kubernetes-storage gebruikt; de externe HDD is puur een hostPath-mount voor de SMB-share.
 
 ## Netwerklaag / toegang van buiten
