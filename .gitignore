@@ -9,3 +9,5 @@ sealed-secrets-key*.yaml
 # Lokale scratch
 .DS_Store
 .idea/
+__pycache__/
+*.pyc

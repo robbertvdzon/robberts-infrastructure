@@ -99,6 +99,9 @@ spec:
         managedNamespaceMetadata:
           labels:
             argocd.argoproj.io/managed-by: argocd
+            preview.vdzonsoftware.nl/managed-by: preview-reconciler
+            preview.vdzonsoftware.nl/repository: personal-news-feed-by-claude-code
+            preview.vdzonsoftware.nl/pr-number: '{{.number}}'
         syncOptions:
           - CreateNamespace=true
         retry:
