@@ -1,0 +1,39 @@
+# Standing acceptatieomgeving voor hkh-autopilot: altijd bereikbaar, zonder login, met geseede
+# demodata (deploy/overlays/acceptance in de hkh-autopilot-repo). In tegenstelling tot
+# hkh-autopilot-applicationset.yaml (per-PR, tijdelijk) is dit één vaste Application die main volgt.
+#
+# Let op: de ArchivesNL-client en de JWT/JWKS-verificatie voor record-intake zijn hier nog niet
+# gemockt (bewust uitgestelde vervolgstap) — deze omgeving praat op die twee punten nog met echte
+# externe endpoints.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hkh-autopilot-acceptance
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: hkh-autopilot
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/hkh-autopilot.git
+    targetRevision: main
+    path: deploy/overlays/acceptance
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hkh-autopilot-acceptance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  revisionHistoryLimit: 5

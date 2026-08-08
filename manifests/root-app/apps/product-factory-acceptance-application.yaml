@@ -1,0 +1,37 @@
+# Standing acceptatieomgeving voor product-factory: altijd bereikbaar, zonder login, met geseede
+# demodata en gemockte agent-bridge (deploy/overlays/acceptance in de product-factory-repo). In
+# tegenstelling tot product-factory-applicationset.yaml (per-PR, tijdelijk) is dit één vaste
+# Application die main volgt, zodat een AI-onderzoeksagent de applicatie altijd kan bekijken zonder op
+# een PR-build te hoeven wachten.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: product-factory-acceptance
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: product-factory
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/product-factory.git
+    targetRevision: main
+    path: deploy/overlays/acceptance
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: product-factory-acceptance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  revisionHistoryLimit: 5
