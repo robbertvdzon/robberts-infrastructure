@@ -39,6 +39,7 @@ RULES = (
     Rule("personal-news-feed-by-claude-code", re.compile(r"^pnf-pr-(\d+)$")),
     Rule("hkh", re.compile(r"^hkh-pr-(\d+)$")),
     Rule("hkh-autopilot", re.compile(r"^hkh-autopilot-pr-(\d+)$")),
+    Rule("product-factory", re.compile(r"^product-factory-pr-(\d+)$")),
 )
 
 
