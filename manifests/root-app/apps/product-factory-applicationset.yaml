@@ -49,6 +49,20 @@ spec:
                   value:
                     - name: PF_PREVIEW_PR_NUMBER
                       value: '{{.number}}'
+            # PF_DASHBOARD_ORIGIN stuurt de CORS-allowlist van dashboard-backend
+            # (DashboardCorsConfiguration.kt) en moet exact de frontend-hostnaam van deze PR zijn,
+            # anders blokkeert de browser iedere fetch vanuit het dashboard.
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: dashboard-backend
+              patch: |-
+                - op: add
+                  path: /spec/template/spec/containers/0/env
+                  value:
+                    - name: PF_DASHBOARD_ORIGIN
+                      value: 'https://product-factory-pr-{{.number}}.vdzonsoftware.nl'
             # Alle drie de Routes krijgen een eigen hostnaam: de frontend bakt de backend-URL op
             # build-tijd in (geen same-origin proxy zoals bij hkh), en de runtime-Route moet
             # bereikbaar zijn zodat een tester het mock-agent-bridge-controle-endpoint kan aanroepen.
