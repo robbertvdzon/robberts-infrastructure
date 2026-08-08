@@ -70,7 +70,7 @@ spec:
       serviceAccountName: preview-reconciler
       containers:
         - name: reconciler
-          image: ghcr.io/robbertvdzon/preview-reconciler:sha-ae1b86e
+          image: ghcr.io/robbertvdzon/preview-reconciler:sha-fe180fc
           imagePullPolicy: Always
           env:
             - name: GITHUB_OWNER
