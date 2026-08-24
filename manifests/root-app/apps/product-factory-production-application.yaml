@@ -1,0 +1,25 @@
+# Productie volgt de expliciete production-overlay. Tijdens de eerste technische-funderingrollout
+# blijft synchronisatie handmatig; de applicatierepository activeert promotie pas na rooktests.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: product-factory
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: product-factory
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/product-factory.git
+    targetRevision: main
+    path: deploy/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: product-factory
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+  revisionHistoryLimit: 5
