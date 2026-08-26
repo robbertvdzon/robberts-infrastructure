@@ -1,8 +1,8 @@
 # Standing acceptatieomgeving voor product-factory: altijd bereikbaar, zonder login, met geseede
 # demodata en gemockte agent-bridge (deploy/overlays/acceptance in de product-factory-repo). In
 # tegenstelling tot product-factory-applicationset.yaml (per-PR, tijdelijk) is dit één vaste
-# Application die main volgt. Tijdens de eerste technische-funderingrollout blijft synchronisatie
-# bewust handmatig; pas na acceptatie- en productierooktests wordt automatische promotie geactiveerd.
+# Application die main volgt. De applicatierepository pint eerst alleen deze overlay; automatische
+# synchronisatie rolt haar uit voordat dezelfde digests voor productie worden vrijgegeven.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -23,6 +23,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: product-factory-acceptance
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
     retry:
