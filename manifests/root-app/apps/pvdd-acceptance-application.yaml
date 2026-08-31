@@ -1,0 +1,34 @@
+# Vaste technische acceptatieomgeving. De PvdD-repository pint hier eerst de geverifieerde
+# release-digests, voert de publieke rooktest uit en promoveert pas daarna dezelfde app-images.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pvdd-acceptance
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: pvdd
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/pvdd.git
+    targetRevision: main
+    path: deploy/overlays/acceptance
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pvdd-acceptance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  revisionHistoryLimit: 5

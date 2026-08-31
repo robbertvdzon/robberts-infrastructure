@@ -1,0 +1,34 @@
+# Productie volgt uitsluitend de production-overlay. Cloudflare's bestaande wildcard behoudt de
+# Host-header, waarna de OpenShift Route pvdd.vdzonsoftware.nl naar deze namespace selecteert.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pvdd
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: pvdd
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/robbertvdzon/pvdd.git
+    targetRevision: main
+    path: deploy/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pvdd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  revisionHistoryLimit: 5
