@@ -57,7 +57,7 @@ scripts/
 | Repo | Rol |
 |---|---|
 | [`personal-news-feed-by-claude-code`](https://github.com/robbertvdzon/personal-news-feed-by-claude-code) | Eigen `deploy/bootstrap.sh` — alleen nog het app-specifieke deel (namespace, secrets, Application); het cluster-brede deel staat sinds 2026-07-07 in `scripts/bootstrap/bootstrap-cluster.sh` hierboven |
-| [`software-factory`](https://github.com/robbertvdzon/software-factory) | softwarefactory-dashboard, eigen `deploy/argocd-application.yaml` (eenmalig `oc apply`, geen eigen bootstrap-script). YouTrack is verwijderd (2026-07-08) — de Software Factory gebruikt sinds de Postgres-tracker-migratie geen YouTrack meer. |
+| [`software-factory`](https://github.com/robbertvdzon/software-factory) | software-factory, eigen `deploy/argocd-application.yaml` (eenmalig `oc apply`, geen eigen bootstrap-script). YouTrack is verwijderd (2026-07-08) — de Software Factory gebruikt sinds de Postgres-tracker-migratie geen YouTrack meer. |
 
 ## Belangrijkste gotcha
 

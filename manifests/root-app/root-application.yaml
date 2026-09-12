@@ -2,7 +2,7 @@
 # reinstall nog met de hand hoeft aan te maken. Deze beheert op zijn beurt
 # alles in apps/:
 #   - 4 app-Applications (personal-news-feed, smb-timemachine,
-#     softwarefactory-dashboard, agent-access) — personal-news-feed en
+#     software-factory, agent-access) — personal-news-feed en
 #     software-factory blijven gewoon los beheerd/CI-gebumpt in hun eigen
 #     repo, alleen de ArgoCD-Application-pointer zelf staat hier.
 #   - personal-news-feed-applicationset.yaml — de PR-preview-ApplicationSet

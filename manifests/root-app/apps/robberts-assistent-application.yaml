@@ -1,7 +1,7 @@
 # Prod-Application voor robberts-assistent. De daadwerkelijke deploy-
 # manifesten (met CI-gebumpte image-tags) blijven in de robberts-assistent-
 # repo zelf, zie spec.source hieronder — zelfde patroon als
-# personal-news-feed-application.yaml/softwarefactory-dashboard.
+# personal-news-feed-application.yaml/software-factory.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

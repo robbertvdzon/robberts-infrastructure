@@ -146,7 +146,7 @@ hoef je nog maar **één** ArgoCD-Application met de hand aan te maken; die
 beheert de rest zelf (zie [`manifests/root-app/`](../manifests/root-app/) —
 4 app-Applications incl. agent-access, de PR-preview-ApplicationSet, de
 `github-pr-token`-SealedSecret, en preview-ns-labeller's Deployment + RBAC).
-personal-news-feed en softwarefactory-dashboard blijven wel gewoon in hun
+personal-news-feed en software-factory blijven wel gewoon in hun
 eigen repo CI-gebumpt — alleen deze pointers/resources staan nu hier op
 één plek.
 
@@ -164,7 +164,7 @@ instance is nu cluster-scoped — zie de uitleg en de bewuste trade-off in
 
 Dit apply't alleen de root-Application; ArgoCD maakt/adopteert daarna alle
 4 Applications (`personal-news-feed`, `smb-timemachine`,
-`softwarefactory-dashboard`, `agent-access`), de PR-preview-ApplicationSet,
+`software-factory`, `agent-access`), de PR-preview-ApplicationSet,
 de `github-pr-token`-SealedSecret, en preview-ns-labeller's Deployment +
 RBAC — self-heal + prune aan.
 
@@ -173,7 +173,7 @@ RBAC — self-heal + prune aan.
 ```bash
 oc get sealedsecrets -A
 oc get secrets -n personal-news-feed newsfeed-api-keys
-oc get secrets -n software-factory softwarefactory-dashboard-secrets
+oc get secrets -n software-factory software-factory-secrets
 ```
 
 Als deze er niet binnen een paar minuten zijn (ArgoCD sync + controller
@@ -219,5 +219,5 @@ oc get pods -A | grep -v Running
 curl -sk https://console-openshift-console.apps.sno.lab.vdzon.com | head -1
 ```
 
-En handmatig: softwarefactory-dashboard en de news-feed openen via hun
+En handmatig: software-factory en de news-feed openen via hun
 publieke URLs, en de SMB-share zichtbaar op het thuisnetwerk.

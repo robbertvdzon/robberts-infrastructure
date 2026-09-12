@@ -18,7 +18,7 @@ personal-news-feed-preview-namespaces, en de app-of-apps-consolidatie (zie
 | `root-apps` (app-of-apps) | Ja | 1 `oc apply` — beheert de 3 apps hieronder zelf |
 | `personal-news-feed` (namespace + secrets + labeller-RBAC) | Ja | Gedeeltelijk — eigen `deploy/bootstrap.sh` blijft verplicht (Application-pointer zelf komt via root-apps, zie hieronder waarom namespace-aanmaak niet vervalt) |
 | `smb-timemachine` (namespace) | Ja | Gedeeltelijk — `oc apply -f namespace.yaml` blijft verplicht (zie hieronder) |
-| `softwarefactory-dashboard` (namespace) | Ja | Gedeeltelijk — `oc apply -f deploy/base/namespace.yaml` (softwarefactory-repo) blijft verplicht; nooit eerder gescript geweest (gat gevonden 2026-07-08, zie hieronder) |
+| `software-factory` (namespace) | Ja | Gedeeltelijk — `oc apply -f deploy/base/namespace.yaml` (softwarefactory-repo) blijft verplicht; nooit eerder gescript geweest (gat gevonden 2026-07-08, zie hieronder) |
 | `agent-access` (read-only ServiceAccount) | Ja | Gedeeltelijk — apply is gescript, token-generatie niet |
 | PVC `personal-news-feed/backend-data` | Ja | Ja (StorageClass-provisioned, geen data-backup nodig — check met Robbert of de inhoud vervangbaar is) |
 | `home-assistant` (namespace + hostPath op externe HDD + PVC) | Ja | Grotendeels — zie §10: `/config` op de HDD overleeft een reinstall vanzelf, de recorder-PVC (`local-path`) bewust niet |
@@ -58,7 +58,7 @@ vers cluster genereert een nieuwe, waardoor alle bestaande `SealedSecret`-resour
 onleesbaar worden. Er zijn nu 3 SealedSecrets in gebruik:
 - `personal-news-feed/newsfeed-api-keys`
 - `smb-timemachine/samba-timemachine-credentials`
-- `software-factory/softwarefactory-dashboard-secrets`
+- `software-factory/software-factory-secrets`
 
 **Moet je onthouden bij de reinstall:** direct na de sealed-secrets-install, vóór je verder gaat:
 `./scripts/backup/restore-sealed-secrets-key.sh <backup>/sealed-secrets-keys.yaml`. Zonder dit (of
@@ -103,7 +103,7 @@ personal-news-feed/software-factory zelf deployen.
   (zie punt 8 hieronder voor het bekende, nog niet gefixte namespace-cleanup-gat).
 - **smb-timemachine** — namespace blijft een losse `oc apply` (cluster-scoped, kan ArgoCD niet), de
   Application zelf komt nu via root-apps.
-- **softwarefactory-dashboard** — de Application zelf via root-apps, maar de namespace **niet**:
+- **software-factory** — de Application zelf via root-apps, maar de namespace **niet**:
   `software-factory`-repo heeft een `deploy/base/namespace.yaml` die bewust buiten
   `kustomization.yaml`'s resources staat (net als bij de andere apps), maar er was nooit een
   bootstrap-script of playbook-stap die 'm daadwerkelijk apply't. Onopgemerkt sinds de namespace

@@ -87,7 +87,7 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
   PR-preview-ApplicationSet, de `github-pr-token`-SealedSecret en
   preview-ns-labeller's Deployment + RBAC. Vier apps:
   - `personal-news-feed` (manifests uit `personal-news-feed-by-claude-code` repo)
-  - `softwarefactory-dashboard` (manifests uit `software-factory` repo, `deploy/base`)
+  - `software-factory` (manifests uit `software-factory` repo, `deploy/base`)
   - `smb-timemachine` (manifests uit **deze** repo, `manifests/smb-timemachine`)
   - `agent-access` (manifests uit **deze** repo, `manifests/agent-access` —
     read-only agent-credential, zie [access-and-credentials.md](access-and-credentials.md))
@@ -103,7 +103,7 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
   manifesten (niet alleen de cluster-brede lijmlaag). SMB/Time-Machine is
   daarvan een voorbeeld: volledig statisch (geen CI-image-bump, geen preview-
   koppeling), dus zonder complicaties te verplaatsen. `personal-news-feed`
-  en `softwarefactory-dashboard` blijven voorlopig in hun eigen repo — hun
+  en `software-factory` blijven voorlopig in hun eigen repo — hun
   CI bumpt de image-tag in dezelfde commit als de build, en personal-news-
   feed's PR-previews zijn tightly coupled aan per-PR-branch-manifesten in
   dat repo. Verhuizen kan, maar vereist een cross-repo GitHub-token voor CI
