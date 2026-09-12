@@ -1,11 +1,12 @@
-# Verhuisd hierheen vanuit software-factory/deploy/argocd-application.yaml
-# (2026-07-08, app-of-apps-consolidatie) — inhoud ongewijzigd. De
-# daadwerkelijke deploy-manifesten (met CI-gebumpte image-tags) blijven
-# gewoon in de software-factory-repo zelf, zie spec.source hieronder.
+# De volledige Software Factory (factory, dashboard-API, frontend en eigen
+# PostgreSQL) in namespace software-factory. Hernoemd van
+# softwarefactory-dashboard op 2026-09-12 toen de factory zelf naar de
+# cluster verhuisde. De deploy-manifesten (met CI-gebumpte image-tags) staan
+# in de software-factory-repo zelf, zie spec.source hieronder.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: softwarefactory-dashboard
+  name: software-factory
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
