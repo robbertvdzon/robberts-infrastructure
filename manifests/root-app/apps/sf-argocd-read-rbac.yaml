@@ -1,0 +1,29 @@
+# Leesrechten op ArgoCD-Applications voor de Software Factory-pod (KubectlDeploymentStatusProbe:
+# `kubectl get application -n argocd` om te zien of een deploy Synced+Healthy is).
+#
+# De factory draait als de bestaande ServiceAccount `sf-preview-cleanup` (zie
+# sf-preview-cleanup-rbac.yaml); die mag alleen namespaces/projects wissen. Deze Role is bewust
+# een losse, minimale aanvulling in de argocd-namespace: get/list op Applications, niets anders.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sf-argocd-read
+  namespace: argocd
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sf-argocd-read
+  namespace: argocd
+subjects:
+  - kind: ServiceAccount
+    name: sf-preview-cleanup
+    namespace: software-factory
+roleRef:
+  kind: Role
+  name: sf-argocd-read
+  apiGroup: rbac.authorization.k8s.io
