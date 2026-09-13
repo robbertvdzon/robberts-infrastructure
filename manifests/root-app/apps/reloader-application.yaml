@@ -1,0 +1,75 @@
+# Stakater Reloader: herstart workloads automatisch zodra een Secret of
+# ConfigMap waar ze naar verwijzen inhoudelijk verandert. Env-vars uit een
+# Secret worden alleen bij het starten van een pod ingelezen; zonder Reloader
+# bleef een opnieuw geseald secret (SealedSecret → Secret, of een door
+# Reflector gespiegelde kopie in een preview-namespace) ongebruikt tot de
+# volgende deploy. Aanleiding: PNF-3 (2026-09-13).
+#
+# Scope — "alle projecten", nooit het cluster zelf:
+#   - autoReloadAll: elke Deployment/StatefulSet/DaemonSet in een geselecteerde
+#     namespace, zonder annotatie per app. Uitzetten per workload kan met
+#     `reloader.stakater.com/auto: "false"`, per Secret/ConfigMap met
+#     `reloader.stakater.com/ignore: "true"`.
+#   - namespaceSelector sluit OpenShift-systeemnamespaces uit via labels die
+#     alleen die namespaces hebben (enforce-PSA, run-level, cluster-monitoring).
+#     Nieuwe app- en preview-namespaces vallen er zo automatisch onder.
+#   - ignoreNamespaces vangt de paar systeemnamespaces zonder zo'n label af,
+#     plus argocd (die beheert de operator zelf).
+#
+# reloadStrategy=annotations: Reloader zet een annotatie op de pod-template in
+# plaats van een dummy env-var; die annotatie staat niet in git en geeft dus
+# geen drift/selfHeal-gevecht met Argo CD.
+#
+# securityContext zonder vaste runAsUser: OpenShift (restricted-v2 SCC) kent
+# zelf een UID uit de namespace-range toe; de chart-default 65534 zou geweigerd
+# worden.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reloader
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://stakater.github.io/stakater-charts
+    chart: reloader
+    targetRevision: 2.2.17
+    helm:
+      releaseName: reloader
+      valuesObject:
+        reloader:
+          autoReloadAll: true
+          reloadStrategy: annotations
+          watchGlobally: true
+          namespaceSelector: "!pod-security.kubernetes.io/enforce,!openshift.io/run-level,!openshift.io/cluster-monitoring"
+          ignoreNamespaces: "argocd,kube-node-lease,openshift,openshift-cluster-olm-operator,openshift-console-user-settings,openshift-host-network,openshift-ingress-canary,openshift-node,openshift-service-ca"
+          deployment:
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: null
+              seccompProfile:
+                type: RuntimeDefault
+            containerSecurityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reloader
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        argocd.argoproj.io/managed-by: argocd
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

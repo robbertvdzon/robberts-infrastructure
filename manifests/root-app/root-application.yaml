@@ -9,6 +9,8 @@
 #     (verhuisd uit personal-news-feed-by-claude-code/deploy/applicationset.yaml)
 #   - github-pr-token-sealed-secret.yaml — token voor die ApplicationSet
 #     (verhuisd uit een imperatieve bootstrap.sh-stap)
+#   - reloader-application.yaml — Stakater Reloader (helm-chart): herstart
+#     workloads bij gewijzigde Secrets/ConfigMaps in alle app-namespaces
 #   - preview-ns-labeller-deployment.yaml + preview-ns-labeller-rbac.yaml —
 #     verhuisd uit personal-news-feed-by-claude-code/deploy/preview-ns-labeller/
 #     (de RBAC kon pas mee toen de instance cluster-scoped werd, 2026-07-08)

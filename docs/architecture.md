@@ -72,6 +72,12 @@ RBAC-verificatie: [access-and-credentials.md](access-and-credentials.md).
   (2026-07-07): dat was cluster-brede bootstrap die toevallig in de eerste
   app-repo was beland, niet iets specifiek voor die app — dashboard/
   smb-timemachine leunen er net zo goed op.
+- **Stakater Reloader** (Argo CD-Application [`reloader-application.yaml`](../manifests/root-app/apps/reloader-application.yaml),
+  sinds 2026-09-13) herstart workloads automatisch zodra een Secret of ConfigMap
+  waar ze naar verwijzen verandert — voor alle app- en preview-namespaces, niet
+  voor OpenShift-systeemnamespaces. Een opnieuw geseald secret is dus na de
+  Argo-sync vanzelf actief; geen `oc rollout restart` meer nodig. Opt-out per
+  workload: `reloader.stakater.com/auto: "false"`.
 - **De ArgoCD-instance draait CLUSTER-SCOPED** (sinds 2026-07-08, via
   `ARGOCD_CLUSTER_CONFIG_NAMESPACES=argocd` op de operator-Subscription):
   hij mag namespaces zelf aanmaken (`CreateNamespace=true` werkt echt) en
