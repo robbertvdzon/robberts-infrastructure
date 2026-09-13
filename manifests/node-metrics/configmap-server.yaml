@@ -35,6 +35,7 @@ metadata:
   namespace: node-metrics
 data:
   serve.py: |
+    # Wijzigingen aan dit script worden door Stakater Reloader automatisch uitgerold.
     import datetime
     import http.server
     import json
