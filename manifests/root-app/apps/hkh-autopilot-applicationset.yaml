@@ -6,22 +6,22 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions:
-    - missingkey=error
+  - missingkey=error
   generators:
-    - pullRequest:
-        github:
-          owner: robbertvdzon
-          repo: hkh-autopilot
-          labels: []
-          tokenRef:
-            secretName: github-pr-token
-            key: token
-        requeueAfterSeconds: 180
+  - pullRequest:
+      github:
+        owner: robbertvdzon
+        repo: hkh-autopilot
+        labels: []
+        tokenRef:
+          secretName: github-pr-token
+          key: token
+      requeueAfterSeconds: 180
   template:
     metadata:
-      name: 'hkh-autopilot-preview-{{.number}}'
+      name: hkh-autopilot-preview-{{.number}}
       finalizers:
-        - resources-finalizer.argocd.argoproj.io
+      - resources-finalizer.argocd.argoproj.io
       labels:
         app.kubernetes.io/part-of: hkh-autopilot
         app.kubernetes.io/managed-by: argocd
@@ -33,108 +33,97 @@ spec:
         targetRevision: '{{.head_sha}}'
         path: deploy/overlays/preview
         kustomize:
-          namespace: 'hkh-autopilot-pr-{{.number}}'
+          namespace: hkh-autopilot-pr-{{.number}}
           patches:
-            - target:
-                group: apps
-                version: v1
-                kind: Deployment
-                name: backend
-              patch: |-
-                - op: add
-                  path: /spec/template/spec/containers/0/env/-
-                  value:
-                    name: HKH_PREVIEW_PR_NUMBER
-                    value: '{{.number}}'
-            - target:
-                group: route.openshift.io
-                version: v1
-                kind: Route
-                name: frontend
-              patch: |-
-                - op: replace
-                  path: /spec/host
-                  value: 'hkh-autopilot-pr-{{.number}}.vdzonsoftware.nl'
-            - target:
-                group: route.openshift.io
-                version: v1
-                kind: Route
-                name: admin
-              patch: |-
-                - op: replace
-                  path: /spec/host
-                  value: 'hkh-autopilot-admin-pr-{{.number}}.vdzonsoftware.nl'
-            # Apply memory profiles after branch overlays, also for older PR heads.
-            - target:
-                group: apps
-                version: v1
-                kind: Deployment
-                name: backend
-              patch: |-
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: backend
-                spec:
-                  template:
-                    spec:
-                      containers:
-                      - name: backend
-                        resources:
-                          requests:
-                            memory: 288Mi
-                          limits:
-                            memory: 384Mi
-                        env:
-                        - name: JAVA_TOOL_OPTIONS
-                          value: -Xmx128m -XX:+UseSerialGC
-            - target:
-                group: apps
-                version: v1
-                kind: Deployment
-                name: frontend
-              patch: |-
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: frontend
-                spec:
-                  template:
-                    spec:
-                      containers:
-                      - name: frontend
-                        resources:
-                          requests:
-                            memory: 32Mi
-                          limits:
-                            memory: 64Mi
-            - target:
-                group: apps
-                version: v1
-                kind: Deployment
-                name: admin
-              patch: |-
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: admin
-                spec:
-                  template:
-                    spec:
-                      containers:
-                      - name: admin
-                        resources:
-                          requests:
-                            memory: 32Mi
-                          limits:
-                            memory: 64Mi
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: backend
+            patch: "- op: add\n  path: /spec/template/spec/containers/0/env/-\n  value:\n    name: HKH_PREVIEW_PR_NUMBER\n    value: '{{.number}}'"
+          - target:
+              group: route.openshift.io
+              version: v1
+              kind: Route
+              name: frontend
+            patch: "- op: replace\n  path: /spec/host\n  value: 'hkh-autopilot-pr-{{.number}}.vdzonsoftware.nl'"
+          - target:
+              group: route.openshift.io
+              version: v1
+              kind: Route
+              name: admin
+            patch: "- op: replace\n  path: /spec/host\n  value: 'hkh-autopilot-admin-pr-{{.number}}.vdzonsoftware.nl'"
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: backend
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\nspec:\n  template:\n    spec:\n      containers:\n    \
+              \  - name: backend\n        resources:\n          requests:\n            memory: 288Mi\n          limits:\n            memory: 384Mi\n\
+              \        env:\n        - name: JAVA_TOOL_OPTIONS\n          value: -Xmx128m -XX:+UseSerialGC"
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: frontend
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: frontend\nspec:\n  template:\n    spec:\n      containers:\n   \
+              \   - name: frontend\n        resources:\n          requests:\n            memory: 32Mi\n          limits:\n            memory:\
+              \ 64Mi"
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: admin
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: admin\nspec:\n  template:\n    spec:\n      containers:\n      -\
+              \ name: admin\n        resources:\n          requests:\n            memory: 32Mi\n          limits:\n            memory: 64Mi"
+          - target:
+              kind: Deployment
+              name: backend
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\nspec:\n  template:\n    metadata:\n      labels:\n    \
+              \    postgres.vdzonsoftware.nl/client: 'true'\n    spec:\n      containers:\n      - name: backend\n        env:\n        - name:\
+              \ HKH_DATABASE_URL\n          value: null\n          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n\
+              \              key: url\n        - name: HKH_DATABASE_USER\n          value: null\n          valueFrom:\n            secretKeyRef:\n\
+              \              name: preview-postgres\n              key: username\n        - name: HKH_DATABASE_PASSWORD\n          value: null\n\
+              \          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n              key: password\n        - name:\
+              \ SPRING_DATASOURCE_URL\n          value: null\n          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n\
+              \              key: url\n        - name: SPRING_DATASOURCE_USERNAME\n          value: null\n          valueFrom:\n            secretKeyRef:\n\
+              \              name: preview-postgres\n              key: username\n        - name: SPRING_DATASOURCE_PASSWORD\n          value:\
+              \ null\n          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n              key: password\n   \
+              \     - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE\n          value: '5'\n        - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE\n\
+              \          value: '0'\n        volumeMounts:\n        - name: central-postgres-ca\n          mountPath: /etc/postgres-ca\n     \
+              \     readOnly: true\n      volumes:\n      - name: central-postgres-ca\n        secret:\n          secretName: preview-postgres\n\
+              \          items:\n          - key: ca.crt\n            path: ca.crt\n"
+          - target:
+              kind: StatefulSet
+              name: database
+            patch: "$patch: delete\napiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: database\n"
+          - target:
+              kind: Deployment
+              name: postgres
+            patch: "$patch: delete\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: postgres\n"
+          - target:
+              kind: Service
+              name: database
+            patch: "$patch: delete\napiVersion: v1\nkind: Service\nmetadata:\n  name: database\n"
+          - target:
+              kind: Service
+              name: postgres
+            patch: "$patch: delete\napiVersion: v1\nkind: Service\nmetadata:\n  name: postgres\n"
+          - target:
+              kind: PersistentVolumeClaim
+              name: database-data
+            patch: "$patch: delete\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: database-data\n"
+          - target:
+              kind: PersistentVolumeClaim
+              name: postgres-data
+            patch: "$patch: delete\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: postgres-data\n"
           images:
-            - 'backend-image=ghcr.io/robbertvdzon/hkh-autopilot-backend:sha-{{.head_short_sha_7}}'
-            - 'frontend-image=ghcr.io/robbertvdzon/hkh-autopilot-frontend:sha-{{.head_short_sha_7}}'
-            - 'admin-image=ghcr.io/robbertvdzon/hkh-autopilot-admin:sha-{{.head_short_sha_7}}'
+          - backend-image=ghcr.io/robbertvdzon/hkh-autopilot-backend:sha-{{.head_short_sha_7}}
+          - frontend-image=ghcr.io/robbertvdzon/hkh-autopilot-frontend:sha-{{.head_short_sha_7}}
+          - admin-image=ghcr.io/robbertvdzon/hkh-autopilot-admin:sha-{{.head_short_sha_7}}
       destination:
         server: https://kubernetes.default.svc
-        namespace: 'hkh-autopilot-pr-{{.number}}'
+        namespace: hkh-autopilot-pr-{{.number}}
       syncPolicy:
         automated:
           prune: true
@@ -146,7 +135,7 @@ spec:
             preview.vdzonsoftware.nl/repository: hkh-autopilot
             preview.vdzonsoftware.nl/pr-number: '{{.number}}'
         syncOptions:
-          - CreateNamespace=true
+        - CreateNamespace=true
         retry:
           limit: 5
           backoff:

@@ -1,0 +1,288 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-metrics
+  namespace: postgres-nonproduction
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-metrics
+  template:
+    metadata:
+      labels:
+        app: postgres-metrics
+        postgres.vdzonsoftware.nl/operator: 'true'
+    spec:
+      serviceAccountName: postgres-metrics
+      automountServiceAccountToken: false
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: metrics
+        image: ghcr.io/robbertvdzon/postgresql-platform@sha256:13007b38d6b9cc504b64d9a44a254ca4d18dbdcd086a3a34bdbb3f9a1c8947e9
+        args:
+        - metrics
+        env:
+        - name: PGHOST
+          value: postgres.postgres-nonproduction.svc
+        - name: PGPORT
+          value: '5432'
+        - name: PGDATABASE
+          value: postgres
+        - name: PGUSER
+          value: platform_monitor
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: platform_monitor
+        - name: PGSSLMODE
+          value: verify-full
+        - name: PGSSLROOTCERT
+          value: /pgca/ca.crt
+        - name: PGCONNECT_TIMEOUT
+          value: '10'
+        - name: PGOPTIONS
+          value: -c default_transaction_read_only=on -c statement_timeout=10000
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: ca
+          mountPath: /pgca
+          readOnly: true
+        - name: scratch
+          mountPath: /scratch
+        ports:
+        - name: metrics
+          containerPort: 9187
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 9187
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: postgres-config
+      - name: ca
+        secret:
+          secretName: postgres-tls
+          items:
+          - key: ca.crt
+            path: ca.crt
+      - name: scratch
+        emptyDir:
+          sizeLimit: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-metrics
+  namespace: postgres-nonproduction
+  labels:
+    app: postgres-metrics
+spec:
+  selector:
+    app: postgres-metrics
+  ports:
+  - name: metrics
+    port: 9187
+    targetPort: 9187
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: metrics-ingress
+  namespace: postgres-nonproduction
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres-metrics
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: openshift-monitoring
+    ports:
+    - protocol: TCP
+      port: 9187
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: postgres-metrics-discovery
+  namespace: postgres-nonproduction
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  - services
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-metrics-discovery
+  namespace: postgres-nonproduction
+subjects:
+- kind: ServiceAccount
+  name: prometheus-k8s
+  namespace: openshift-monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: postgres-metrics-discovery
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: central-postgres
+  namespace: postgres-nonproduction
+spec:
+  selector:
+    matchLabels:
+      app: postgres-metrics
+  endpoints:
+  - port: metrics
+    interval: 60s
+    scrapeTimeout: 20s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: central-postgres
+  namespace: postgres-nonproduction
+spec:
+  groups:
+  - name: central-postgres.rules
+    rules:
+    - alert: CentralPostgresVolumeFull
+      expr: kubelet_volume_stats_available_bytes{namespace="postgres-nonproduction",persistentvolumeclaim="postgres-data"}
+        / kubelet_volume_stats_capacity_bytes{namespace="postgres-nonproduction",persistentvolumeclaim="postgres-data"}
+        < 0.15
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: PostgreSQL volume minder dan 15% vrij
+    - alert: CentralPostgresUnavailable
+      expr: central_postgres_up{namespace="postgres-nonproduction"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: Centrale PostgreSQL niet bereikbaar (nonproduction)
+    - alert: CentralPostgresConnectionsHigh
+      expr: central_postgres_connections{namespace="postgres-nonproduction"} / central_postgres_max_connections{namespace="postgres-nonproduction"}
+        > 0.8
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: PostgreSQL verbindingen boven 80%
+    - alert: CentralPostgresMetricsMissing
+      expr: absent(up{namespace="postgres-nonproduction",service="postgres-metrics"}
+        == 1)
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: PostgreSQL monitoring ontbreekt
+    - alert: CentralPostgresMemoryHigh
+      expr: container_memory_working_set_bytes{namespace="postgres-nonproduction",container="postgres"}
+        / on(namespace,pod,container) kube_pod_container_resource_limits{namespace="postgres-nonproduction",container="postgres",resource="memory"}
+        > 0.85
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: PostgreSQL geheugengebruik boven 85%
+    - alert: CentralPostgresOOM
+      expr: increase(kube_pod_container_status_restarts_total{namespace="postgres-nonproduction",container="postgres"}[10m])
+        > 0 and on(namespace,pod,container) kube_pod_container_status_last_terminated_reason{namespace="postgres-nonproduction",container="postgres",reason="OOMKilled"}
+        == 1
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: PostgreSQL herstart na geheugentekort
+    - alert: CentralPostgresLongTransaction
+      expr: central_postgres_oldest_transaction_seconds{namespace="postgres-nonproduction"}
+        > 300
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: PostgreSQL transactie langer dan vijf minuten
+    - alert: CentralPostgresLockWait
+      expr: central_postgres_waiting_locks{namespace="postgres-nonproduction"} > 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: PostgreSQL transacties wachten op locks
+    - alert: CentralPostgresVacuumAge
+      expr: central_postgres_transaction_id_age{namespace="postgres-nonproduction"}
+        > 200000000
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: Controleer autovacuum en transaction-ID-leeftijd
+    - alert: CentralPostgresWALGrowth
+      expr: central_postgres_wal_bytes{namespace="postgres-nonproduction"} > 4294967296
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: PostgreSQL WAL groter dan 4 GiB
+    - alert: CentralPostgresPreviewOrphan
+      expr: central_postgres_oldest_preview_orphan_seconds{namespace="postgres-nonproduction"}
+        > 90000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: Previewdatabase wacht te lang op opruimen
+    - alert: CentralPostgresPreviewControllerUnavailable
+      expr: kube_deployment_status_replicas_available{namespace="postgres-nonproduction",deployment="postgres-preview-controller"}
+        < 1
+      for: 3m
+      labels:
+        severity: critical
+      annotations:
+        summary: Previewdatabase-provisioning is niet gezond

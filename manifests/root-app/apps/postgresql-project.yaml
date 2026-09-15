@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: postgresql-platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-1'
+spec:
+  description: Centrale PostgreSQL-infrastructuur; uitsluitend beheerd vanuit de infrastructuurrepository.
+  sourceRepos:
+  - https://github.com/robbertvdzon/robberts-infrastructure.git
+  destinations:
+  - server: https://kubernetes.default.svc
+    namespace: postgres-production
+  - server: https://kubernetes.default.svc
+    namespace: postgres-nonproduction
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+  - group: security.openshift.io
+    kind: SecurityContextConstraints
+  - group: rbac.authorization.k8s.io
+    kind: ClusterRole
+  - group: rbac.authorization.k8s.io
+    kind: ClusterRoleBinding
+  - group: admissionregistration.k8s.io
+    kind: ValidatingAdmissionPolicy
+  - group: admissionregistration.k8s.io
+    kind: ValidatingAdmissionPolicyBinding
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'

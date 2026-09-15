@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-preview-controller
+  namespace: postgres-nonproduction
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-preview-controller
+  template:
+    metadata:
+      labels:
+        app: postgres-preview-controller
+        postgres.vdzonsoftware.nl/operator: 'true'
+    spec:
+      serviceAccountName: postgres-controller
+      automountServiceAccountToken: true
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: controller
+        image: ghcr.io/robbertvdzon/postgresql-platform@sha256:13007b38d6b9cc504b64d9a44a254ca4d18dbdcd086a3a34bdbb3f9a1c8947e9
+        args:
+        - controller
+        env:
+        - name: PGHOST
+          value: postgres.postgres-nonproduction.svc
+        - name: PGPORT
+          value: '5432'
+        - name: PGDATABASE
+          value: postgres
+        - name: PGUSER
+          value: postgres
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: admin
+        - name: PGSSLMODE
+          value: verify-full
+        - name: PGSSLROOTCERT
+          value: /pgca/ca.crt
+        - name: PGCONNECT_TIMEOUT
+          value: '10'
+        - name: MAX_PREVIEW_DATABASES
+          value: '8'
+        - name: PREVIEW_DELETE_GRACE_SECONDS
+          value: '3600'
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: ca
+          mountPath: /pgca
+          readOnly: true
+        - name: scratch
+          mountPath: /scratch
+        - name: controller
+          mountPath: /controller
+          readOnly: true
+        readinessProbe:
+          exec:
+            command:
+            - python3
+            - -c
+            - import json,time; s=json.load(open('/tmp/controller-status.json'));
+              assert not s['failed'] and time.time()-s['time']<150
+          initialDelaySeconds: 15
+          periodSeconds: 30
+      volumes:
+      - name: config
+        configMap:
+          name: postgres-config
+      - name: ca
+        secret:
+          secretName: postgres-tls
+          items:
+          - key: ca.crt
+            path: ca.crt
+      - name: scratch
+        emptyDir:
+          sizeLimit: 4Gi
+      - name: controller
+        secret:
+          secretName: postgres-credentials
+          items:
+          - key: controller-master
+            path: master
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: postgres-preview-controller
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ''
+  resources:
+  - secrets
+  resourceNames:
+  - preview-postgres
+  verbs:
+  - get
+  - patch
+- apiGroups:
+  - ''
+  resources:
+  - secrets
+  verbs:
+  - create
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: postgres-preview-controller
+subjects:
+- kind: ServiceAccount
+  name: postgres-controller
+  namespace: postgres-nonproduction
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: postgres-preview-controller
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: postgres-preview-controller-boundary
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - secrets
+      - deployments
+  matchConditions:
+  - name: controller-identity
+    expression: request.userInfo.username == 'system:serviceaccount:postgres-nonproduction:postgres-controller'
+  validations:
+  - expression: request.namespace.matches('^(hkh-autopilot|hkh|product-factory|pvdd|pnf)-pr-[1-9][0-9]*$')
+    message: Preview controller may write only approved PR namespaces
+  - expression: request.resource.resource != 'secrets' || object.metadata.name ==
+      'preview-postgres'
+    message: Only preview-postgres may be written
+  - expression: request.resource.resource != 'deployments' || object.metadata.name
+      in ['backend','runtime','product-factory-backend']
+    message: Only approved preview backends may be changed
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: postgres-preview-controller-boundary
+spec:
+  policyName: postgres-preview-controller-boundary
+  validationActions:
+  - Deny

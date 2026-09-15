@@ -1,0 +1,580 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: postgres-production
+  labels:
+    argocd.argoproj.io/managed-by: argocd
+    postgres.vdzonsoftware.nl/tier: production
+    openshift.io/cluster-monitoring: 'true'
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: postgres-production
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-server
+  namespace: postgres-production
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-server-scc
+  namespace: postgres-production
+subjects:
+- kind: ServiceAccount
+  name: postgres-server
+  namespace: postgres-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:local-path-postgresql
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-provision
+  namespace: postgres-production
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-provision-scc
+  namespace: postgres-production
+subjects:
+- kind: ServiceAccount
+  name: postgres-provision
+  namespace: postgres-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:local-path-postgresql
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-backup
+  namespace: postgres-production
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-backup-scc
+  namespace: postgres-production
+subjects:
+- kind: ServiceAccount
+  name: postgres-backup
+  namespace: postgres-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:postgresql-host-backup
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-restorecheck
+  namespace: postgres-production
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-restorecheck-scc
+  namespace: postgres-production
+subjects:
+- kind: ServiceAccount
+  name: postgres-restorecheck
+  namespace: postgres-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:postgresql-host-backup
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-metrics
+  namespace: postgres-production
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-metrics-scc
+  namespace: postgres-production
+subjects:
+- kind: ServiceAccount
+  name: postgres-metrics
+  namespace: postgres-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:postgresql-host-backup
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-controller
+  namespace: postgres-production
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-controller-scc
+  namespace: postgres-production
+subjects:
+- kind: ServiceAccount
+  name: postgres-controller
+  namespace: postgres-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:local-path-postgresql
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: postgres-production
+data:
+  postgresql.conf: 'listen_addresses=''*''
+
+    port=5432
+
+    hba_file=''/config/pg_hba.conf''
+
+    max_connections=80
+
+    shared_buffers=256MB
+
+    effective_cache_size=1GB
+
+    work_mem=4MB
+
+    maintenance_work_mem=64MB
+
+    autovacuum_work_mem=32MB
+
+    max_wal_size=1GB
+
+    password_encryption=''scram-sha-256''
+
+    timezone=''Etc/UTC''
+
+    ssl=on
+
+    ssl_cert_file=''/run/postgres-tls/server.crt''
+
+    ssl_key_file=''/run/postgres-tls/server.key''
+
+    log_statement=''none''
+
+    log_min_error_statement=''panic''
+
+    log_error_verbosity=''terse''
+
+    '
+  pg_hba.conf: 'local all postgres trust
+
+    local all all reject
+
+    hostnossl all all 0.0.0.0/0 reject
+
+    hostssl all postgres 0.0.0.0/0 scram-sha-256
+
+    hostssl all platform_backup 0.0.0.0/0 scram-sha-256
+
+    hostssl postgres platform_monitor 0.0.0.0/0 scram-sha-256
+
+    hostssl sameuser all 0.0.0.0/0 scram-sha-256
+
+    host all all 0.0.0.0/0 reject
+
+    '
+  registry.json: "{\n  \"databases\": [\n    {\n      \"name\": \"ar_prod\"\n    },\n\
+    \    {\n      \"name\": \"hkh_prod\"\n    },\n    {\n      \"name\": \"hkh_autopilot_prod\"\
+    \n    },\n    {\n      \"name\": \"pf_prod\"\n    },\n    {\n      \"name\": \"\
+    pf_legacy_prod\",\n      \"archive\": true\n    },\n    {\n      \"name\": \"\
+    pvdd_prod\"\n    },\n    {\n      \"name\": \"sf_prod\",\n      \"schema\": \"\
+    software_factory\"\n    }\n  ]\n}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: postgres-production
+spec:
+  selector:
+    app: central-postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+  namespace: postgres-production
+spec:
+  selector:
+    app: central-postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: postgres-production
+spec:
+  serviceName: postgres-headless
+  replicas: 1
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app: central-postgres
+  template:
+    metadata:
+      labels:
+        app: central-postgres
+    spec:
+      serviceAccountName: postgres-server
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        seLinuxOptions:
+          type: spc_t
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      - name: tls-permissions
+        image: docker.io/library/postgres@sha256:1938c16e9d2f10a6a3623b344b64ae8d45f407f2c5f34f0979468bb689b9227a
+        command:
+        - sh
+        - -ec
+        - cp /tls/tls.crt /run/postgres-tls/server.crt; cp /tls/tls.key /run/postgres-tls/server.key;
+          chmod 600 /run/postgres-tls/server.key
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tls
+          mountPath: /tls
+          readOnly: true
+        - name: tls-private
+          mountPath: /run/postgres-tls
+      containers:
+      - name: postgres
+        image: docker.io/library/postgres@sha256:1938c16e9d2f10a6a3623b344b64ae8d45f407f2c5f34f0979468bb689b9227a
+        args:
+        - postgres
+        - -c
+        - config_file=/config/postgresql.conf
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: admin
+        - name: POSTGRES_INITDB_ARGS
+          value: --encoding=UTF8 --locale=en_US.utf8 --auth-host=scram-sha-256 --auth-local=trust
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - containerPort: 5432
+          name: postgres
+        resources:
+          requests:
+            cpu: 500m
+            memory: 768Mi
+          limits:
+            cpu: '2'
+            memory: 1536Mi
+        startupProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - 127.0.0.1
+            - -U
+            - postgres
+            - -d
+            - postgres
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - 127.0.0.1
+            - -U
+            - postgres
+            - -d
+            - postgres
+          periodSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - 127.0.0.1
+            - -U
+            - postgres
+            - -d
+            - postgres
+          periodSeconds: 20
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: tls-private
+          mountPath: /run/postgres-tls
+        - name: dshm
+          mountPath: /dev/shm
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: postgres-data
+      - name: config
+        configMap:
+          name: postgres-config
+      - name: tls
+        secret:
+          secretName: postgres-tls
+      - name: tls-private
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Mi
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 128Mi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-provision
+  namespace: postgres-production
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: '1'
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        postgres.vdzonsoftware.nl/operator: 'true'
+    spec:
+      serviceAccountName: postgres-provision
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: provision
+        image: ghcr.io/robbertvdzon/postgresql-platform@sha256:13007b38d6b9cc504b64d9a44a254ca4d18dbdcd086a3a34bdbb3f9a1c8947e9
+        args:
+        - provision
+        env:
+        - name: PGHOST
+          value: postgres.postgres-production.svc
+        - name: PGPORT
+          value: '5432'
+        - name: PGDATABASE
+          value: postgres
+        - name: PGUSER
+          value: postgres
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: admin
+        - name: PGSSLMODE
+          value: verify-full
+        - name: PGSSLROOTCERT
+          value: /pgca/ca.crt
+        - name: PGCONNECT_TIMEOUT
+          value: '10'
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: ca
+          mountPath: /pgca
+          readOnly: true
+        - name: scratch
+          mountPath: /scratch
+        - name: credentials
+          mountPath: /credentials
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: postgres-config
+      - name: ca
+        secret:
+          secretName: postgres-tls
+          items:
+          - key: ca.crt
+            path: ca.crt
+      - name: scratch
+        emptyDir:
+          sizeLimit: 4Gi
+      - name: credentials
+        secret:
+          secretName: postgres-credentials
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: postgres-production
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+  namespace: postgres-production
+spec:
+  podSelector:
+    matchLabels:
+      app: central-postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: agent-runtime
+      podSelector:
+        matchLabels:
+          postgres.vdzonsoftware.nl/client: 'true'
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: hkh
+      podSelector:
+        matchLabels:
+          postgres.vdzonsoftware.nl/client: 'true'
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: hkh-autopilot
+      podSelector:
+        matchLabels:
+          postgres.vdzonsoftware.nl/client: 'true'
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: product-factory
+      podSelector:
+        matchLabels:
+          postgres.vdzonsoftware.nl/client: 'true'
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: pvdd
+      podSelector:
+        matchLabels:
+          postgres.vdzonsoftware.nl/client: 'true'
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: software-factory
+      podSelector:
+        matchLabels:
+          postgres.vdzonsoftware.nl/client: 'true'
+    - podSelector:
+        matchLabels:
+          postgres.vdzonsoftware.nl/operator: 'true'
+    ports:
+    - protocol: TCP
+      port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operator-egress
+  namespace: postgres-production
+spec:
+  podSelector:
+    matchLabels:
+      postgres.vdzonsoftware.nl/operator: 'true'
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: central-postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 5353
+    - protocol: TCP
+      port: 5353
+  - ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443

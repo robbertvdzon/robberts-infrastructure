@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgres-production
+  namespace: argocd
+spec:
+  project: postgresql-platform
+  source:
+    repoURL: https://github.com/robbertvdzon/robberts-infrastructure.git
+    targetRevision: main
+    path: manifests/postgresql/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: postgres-production
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

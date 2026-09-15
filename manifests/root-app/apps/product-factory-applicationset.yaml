@@ -6,22 +6,22 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions:
-    - missingkey=error
+  - missingkey=error
   generators:
-    - pullRequest:
-        github:
-          owner: robbertvdzon
-          repo: product-factory
-          labels: []
-          tokenRef:
-            secretName: github-pr-token
-            key: token
-        requeueAfterSeconds: 180
+  - pullRequest:
+      github:
+        owner: robbertvdzon
+        repo: product-factory
+        labels: []
+        tokenRef:
+          secretName: github-pr-token
+          key: token
+      requeueAfterSeconds: 180
   template:
     metadata:
-      name: 'product-factory-preview-{{.number}}'
+      name: product-factory-preview-{{.number}}
       finalizers:
-        - resources-finalizer.argocd.argoproj.io
+      - resources-finalizer.argocd.argoproj.io
       labels:
         app.kubernetes.io/part-of: product-factory
         app.kubernetes.io/managed-by: argocd
@@ -33,127 +33,127 @@ spec:
         targetRevision: '{{.head_sha}}'
         path: deploy/overlays/preview
         kustomize:
-          namespace: 'product-factory-pr-{{.number}}'
+          namespace: product-factory-pr-{{.number}}
           patches:
-            # PF_PREVIEW_PR_NUMBER is per PR uniek en hoort dus niet in het gecommitte
-            # preview-secret.yaml; PreviewRuntimeConfig weigert op te starten zonder dit nummer
-            # zodra PF_PREVIEW_ENABLED aan staat (zie productfactory/.../preview/PreviewRuntimeConfig.kt).
-            - target:
-                group: apps
-                version: v1
-                kind: Deployment
-                name: runtime
-              patch: |-
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: runtime
-                spec:
-                  template:
-                    spec:
-                      containers:
-                      - name: runtime
-                        # SHA-tagged images are immutable; reuse the existing node cache.
-                        imagePullPolicy: IfNotPresent
-                        resources:
-                          requests:
-                            memory: 320Mi
-                          limits:
-                            memory: 512Mi
-                        env:
-                        - name: JAVA_TOOL_OPTIONS
-                          value: -Xmx192m -XX:+UseSerialGC
-                        - name: PF_PREVIEW_PR_NUMBER
-                          value: '{{.number}}'
-            # PF_DASHBOARD_ORIGIN stuurt de CORS-allowlist van dashboard-backend
-            # (DashboardCorsConfiguration.kt) en moet exact de frontend-hostnaam van deze PR zijn,
-            # anders blokkeert de browser iedere fetch vanuit het dashboard.
-            - target:
-                group: apps
-                version: v1
-                kind: Deployment
-                name: dashboard-backend
-              patch: |-
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: dashboard-backend
-                spec:
-                  template:
-                    spec:
-                      containers:
-                      - name: dashboard-backend
-                        # SHA-tagged images are immutable; reuse the existing node cache.
-                        imagePullPolicy: IfNotPresent
-                        resources:
-                          requests:
-                            memory: 320Mi
-                          limits:
-                            memory: 448Mi
-                        env:
-                        - name: JAVA_TOOL_OPTIONS
-                          value: -Xmx160m -XX:+UseG1GC
-                        - name: PF_DASHBOARD_ORIGIN
-                          value: https://product-factory-pr-{{.number}}.vdzonsoftware.nl
-            # Alle drie de Routes krijgen een eigen hostnaam: de frontend bakt de backend-URL op
-            # build-tijd in (geen same-origin proxy zoals bij hkh), en de runtime-Route moet
-            # bereikbaar zijn zodat een tester het mock-agent-bridge-controle-endpoint kan aanroepen.
-            - target:
-                group: route.openshift.io
-                version: v1
-                kind: Route
-                name: dashboard-frontend
-              patch: |-
-                - op: replace
-                  path: /spec/host
-                  value: 'product-factory-pr-{{.number}}.vdzonsoftware.nl'
-            - target:
-                group: route.openshift.io
-                version: v1
-                kind: Route
-                name: dashboard-backend
-              patch: |-
-                - op: replace
-                  path: /spec/host
-                  value: 'product-factory-api-pr-{{.number}}.vdzonsoftware.nl'
-            - target:
-                group: route.openshift.io
-                version: v1
-                kind: Route
-                name: runtime
-              patch: |-
-                - op: replace
-                  path: /spec/host
-                  value: 'product-factory-runtime-pr-{{.number}}.vdzonsoftware.nl'
-            - target:
-                group: apps
-                version: v1
-                kind: Deployment
-                name: dashboard-frontend
-              patch: |-
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: dashboard-frontend
-                spec:
-                  template:
-                    spec:
-                      containers:
-                      - name: dashboard-frontend
-                        # SHA-tagged images are immutable; reuse the existing node cache.
-                        imagePullPolicy: IfNotPresent
-                        resources:
-                          requests:
-                            memory: 32Mi
-                          limits:
-                            memory: 64Mi
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: runtime
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: runtime\nspec:\n  template:\n    spec:\n      containers:\n    \
+              \  - name: runtime\n        # SHA-tagged images are immutable; reuse the existing node cache.\n        imagePullPolicy: IfNotPresent\n\
+              \        resources:\n          requests:\n            memory: 320Mi\n          limits:\n            memory: 512Mi\n        env:\n\
+              \        - name: JAVA_TOOL_OPTIONS\n          value: -Xmx192m -XX:+UseSerialGC\n        - name: PF_PREVIEW_PR_NUMBER\n         \
+              \ value: '{{.number}}'"
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: dashboard-backend
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: dashboard-backend\nspec:\n  template:\n    spec:\n      containers:\n\
+              \      - name: dashboard-backend\n        # SHA-tagged images are immutable; reuse the existing node cache.\n        imagePullPolicy:\
+              \ IfNotPresent\n        resources:\n          requests:\n            memory: 320Mi\n          limits:\n            memory: 448Mi\n\
+              \        env:\n        - name: JAVA_TOOL_OPTIONS\n          value: -Xmx160m -XX:+UseG1GC\n        - name: PF_DASHBOARD_ORIGIN\n\
+              \          value: https://product-factory-pr-{{.number}}.vdzonsoftware.nl"
+          - target:
+              group: route.openshift.io
+              version: v1
+              kind: Route
+              name: dashboard-frontend
+            patch: "- op: replace\n  path: /spec/host\n  value: 'product-factory-pr-{{.number}}.vdzonsoftware.nl'"
+          - target:
+              group: route.openshift.io
+              version: v1
+              kind: Route
+              name: dashboard-backend
+            patch: "- op: replace\n  path: /spec/host\n  value: 'product-factory-api-pr-{{.number}}.vdzonsoftware.nl'"
+          - target:
+              group: route.openshift.io
+              version: v1
+              kind: Route
+              name: runtime
+            patch: "- op: replace\n  path: /spec/host\n  value: 'product-factory-runtime-pr-{{.number}}.vdzonsoftware.nl'"
+          - target:
+              group: apps
+              version: v1
+              kind: Deployment
+              name: dashboard-frontend
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: dashboard-frontend\nspec:\n  template:\n    spec:\n      containers:\n\
+              \      - name: dashboard-frontend\n        # SHA-tagged images are immutable; reuse the existing node cache.\n        imagePullPolicy:\
+              \ IfNotPresent\n        resources:\n          requests:\n            memory: 32Mi\n          limits:\n            memory: 64Mi"
+          - target:
+              kind: Deployment
+              name: runtime
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: runtime\nspec:\n  template:\n    metadata:\n      labels:\n    \
+              \    postgres.vdzonsoftware.nl/client: 'true'\n    spec:\n      containers:\n      - name: runtime\n        env:\n        - name:\
+              \ PF_DB_URL\n          value: null\n          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n    \
+              \          key: url\n        - name: PF_DB_USERNAME\n          value: null\n          valueFrom:\n            secretKeyRef:\n  \
+              \            name: preview-postgres\n              key: username\n        - name: PF_DB_PASSWORD\n          value: null\n      \
+              \    valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n              key: password\n        - name: SPRING_DATASOURCE_URL\n\
+              \          value: null\n          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n              key:\
+              \ url\n        - name: SPRING_DATASOURCE_USERNAME\n          value: null\n          valueFrom:\n            secretKeyRef:\n    \
+              \          name: preview-postgres\n              key: username\n        - name: SPRING_DATASOURCE_PASSWORD\n          value: null\n\
+              \          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n              key: password\n        - name:\
+              \ SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE\n          value: '5'\n        - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE\n    \
+              \      value: '0'\n        volumeMounts:\n        - name: central-postgres-ca\n          mountPath: /etc/postgres-ca\n         \
+              \ readOnly: true\n      volumes:\n      - name: central-postgres-ca\n        secret:\n          secretName: preview-postgres\n \
+              \         items:\n          - key: ca.crt\n            path: ca.crt\n"
+          - target:
+              kind: Deployment
+              name: product-factory-backend
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: product-factory-backend\nspec:\n  template:\n    metadata:\n   \
+              \   labels:\n        postgres.vdzonsoftware.nl/client: 'true'\n    spec:\n      containers:\n      - name: backend\n        env:\n\
+              \        - name: PF_DB_URL\n          value: null\n          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n\
+              \              key: url\n        - name: PF_DB_USERNAME\n          value: null\n          valueFrom:\n            secretKeyRef:\n\
+              \              name: preview-postgres\n              key: username\n        - name: PF_DB_PASSWORD\n          value: null\n    \
+              \      valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n              key: password\n        - name:\
+              \ SPRING_DATASOURCE_URL\n          value: null\n          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n\
+              \              key: url\n        - name: SPRING_DATASOURCE_USERNAME\n          value: null\n          valueFrom:\n            secretKeyRef:\n\
+              \              name: preview-postgres\n              key: username\n        - name: SPRING_DATASOURCE_PASSWORD\n          value:\
+              \ null\n          valueFrom:\n            secretKeyRef:\n              name: preview-postgres\n              key: password\n   \
+              \     - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE\n          value: '5'\n        - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE\n\
+              \          value: '0'\n        volumeMounts:\n        - name: central-postgres-ca\n          mountPath: /etc/postgres-ca\n     \
+              \     readOnly: true\n      volumes:\n      - name: central-postgres-ca\n        secret:\n          secretName: preview-postgres\n\
+              \          items:\n          - key: ca.crt\n            path: ca.crt\n"
+          - target:
+              kind: StatefulSet
+              name: database
+            patch: "$patch: delete\napiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: database\n"
+          - target:
+              kind: Deployment
+              name: postgres
+            patch: "$patch: delete\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: postgres\n"
+          - target:
+              kind: Service
+              name: database
+            patch: "$patch: delete\napiVersion: v1\nkind: Service\nmetadata:\n  name: database\n"
+          - target:
+              kind: Service
+              name: postgres
+            patch: "$patch: delete\napiVersion: v1\nkind: Service\nmetadata:\n  name: postgres\n"
+          - target:
+              kind: PersistentVolumeClaim
+              name: database-data
+            patch: "$patch: delete\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: database-data\n"
+          - target:
+              kind: PersistentVolumeClaim
+              name: postgres-data
+            patch: "$patch: delete\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: postgres-data\n"
+          - target:
+              kind: Deployment
+              name: product-factory-backend
+            patch: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: product-factory-backend\nspec:\n  template:\n    spec:\n      containers:\n\
+              \      - name: backend\n        env:\n        - name: PF_PUBLIC_FRONTEND_URL\n          value: https://product-factory-pr-{{.number}}.vdzonsoftware.nl\n\
+              \        - name: PF_PUBLIC_BACKEND_URL\n          value: https://product-factory-api-pr-{{.number}}.vdzonsoftware.nl\n"
           images:
-            - 'ghcr.io/robbertvdzon/product-factory-runtime=ghcr.io/robbertvdzon/product-factory-runtime:sha-{{.head_sha}}'
-            - 'ghcr.io/robbertvdzon/product-factory-dashboard-backend=ghcr.io/robbertvdzon/product-factory-dashboard-backend:sha-{{.head_sha}}'
-            - 'ghcr.io/robbertvdzon/product-factory-dashboard-frontend=ghcr.io/robbertvdzon/product-factory-dashboard-frontend:sha-{{.head_sha}}'
+          - ghcr.io/robbertvdzon/product-factory-runtime=ghcr.io/robbertvdzon/product-factory-runtime:sha-{{.head_sha}}
+          - ghcr.io/robbertvdzon/product-factory-dashboard-backend=ghcr.io/robbertvdzon/product-factory-dashboard-backend:sha-{{.head_sha}}
+          - ghcr.io/robbertvdzon/product-factory-dashboard-frontend=ghcr.io/robbertvdzon/product-factory-dashboard-frontend:sha-{{.head_sha}}
+          - ghcr.io/robbertvdzon/product-factory-backend=ghcr.io/robbertvdzon/product-factory-backend:sha-{{.head_sha}}
+          - ghcr.io/robbertvdzon/product-factory-frontend=ghcr.io/robbertvdzon/product-factory-frontend:sha-{{.head_sha}}
       destination:
         server: https://kubernetes.default.svc
-        namespace: 'product-factory-pr-{{.number}}'
+        namespace: product-factory-pr-{{.number}}
       syncPolicy:
         automated:
           prune: true
@@ -165,7 +165,7 @@ spec:
             preview.vdzonsoftware.nl/repository: product-factory
             preview.vdzonsoftware.nl/pr-number: '{{.number}}'
         syncOptions:
-          - CreateNamespace=true
+        - CreateNamespace=true
         retry:
           limit: 5
           backoff:

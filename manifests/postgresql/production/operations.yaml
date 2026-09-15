@@ -1,0 +1,213 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: postgres-production
+spec:
+  schedule: 15 2 * * *
+  timeZone: Europe/Amsterdam
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            postgres.vdzonsoftware.nl/operator: 'true'
+        spec:
+          serviceAccountName: postgres-backup
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            runAsUser: 1000
+            seLinuxOptions:
+              type: spc_t
+          containers:
+          - name: backup
+            image: ghcr.io/robbertvdzon/postgresql-platform@sha256:13007b38d6b9cc504b64d9a44a254ca4d18dbdcd086a3a34bdbb3f9a1c8947e9
+            args:
+            - backup
+            env:
+            - name: PGHOST
+              value: postgres.postgres-production.svc
+            - name: PGPORT
+              value: '5432'
+            - name: PGDATABASE
+              value: postgres
+            - name: PGUSER
+              value: platform_backup
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: platform_backup
+            - name: PGSSLMODE
+              value: verify-full
+            - name: PGSSLROOTCERT
+              value: /pgca/ca.crt
+            - name: PGCONNECT_TIMEOUT
+              value: '10'
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+            volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: ca
+              mountPath: /pgca
+              readOnly: true
+            - name: scratch
+              mountPath: /scratch
+            - name: backups
+              mountPath: /backups
+              readOnly: false
+            - name: encryption
+              mountPath: /encryption
+              readOnly: true
+          volumes:
+          - name: config
+            configMap:
+              name: postgres-config
+          - name: ca
+            secret:
+              secretName: postgres-tls
+              items:
+              - key: ca.crt
+                path: ca.crt
+          - name: scratch
+            emptyDir:
+              sizeLimit: 4Gi
+          - name: backups
+            hostPath:
+              path: /var/mnt/external-hdd/postgres-backups/central
+              type: Directory
+          - name: encryption
+            secret:
+              secretName: postgres-backup-encryption
+              items:
+              - key: recipient
+                path: recipient
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-restorecheck
+  namespace: postgres-production
+spec:
+  schedule: 30 3 * * 0
+  timeZone: Europe/Amsterdam
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            postgres.vdzonsoftware.nl/operator: 'true'
+        spec:
+          serviceAccountName: postgres-restorecheck
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            runAsUser: 1000
+            seLinuxOptions:
+              type: spc_t
+          containers:
+          - name: restorecheck
+            image: ghcr.io/robbertvdzon/postgresql-platform@sha256:13007b38d6b9cc504b64d9a44a254ca4d18dbdcd086a3a34bdbb3f9a1c8947e9
+            args:
+            - restorecheck
+            env:
+            - name: PGHOST
+              value: postgres.postgres-production.svc
+            - name: PGPORT
+              value: '5432'
+            - name: PGDATABASE
+              value: postgres
+            - name: PGUSER
+              value: postgres
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: admin
+            - name: PGSSLMODE
+              value: verify-full
+            - name: PGSSLROOTCERT
+              value: /pgca/ca.crt
+            - name: PGCONNECT_TIMEOUT
+              value: '10'
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+            volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: ca
+              mountPath: /pgca
+              readOnly: true
+            - name: scratch
+              mountPath: /scratch
+            - name: backups
+              mountPath: /backups
+              readOnly: false
+            - name: encryption
+              mountPath: /encryption
+              readOnly: true
+          volumes:
+          - name: config
+            configMap:
+              name: postgres-config
+          - name: ca
+            secret:
+              secretName: postgres-tls
+              items:
+              - key: ca.crt
+                path: ca.crt
+          - name: scratch
+            emptyDir:
+              sizeLimit: 4Gi
+          - name: backups
+            hostPath:
+              path: /var/mnt/external-hdd/postgres-backups/central
+              type: Directory
+          - name: encryption
+            secret:
+              secretName: postgres-backup-encryption
+              items:
+              - key: identity
+                path: identity
