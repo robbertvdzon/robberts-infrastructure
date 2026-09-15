@@ -64,6 +64,70 @@ spec:
                 - op: replace
                   path: /spec/host
                   value: 'hkh-autopilot-admin-pr-{{.number}}.vdzonsoftware.nl'
+            # Apply memory profiles after branch overlays, also for older PR heads.
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: backend
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: backend
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: backend
+                        resources:
+                          requests:
+                            memory: 288Mi
+                          limits:
+                            memory: 384Mi
+                        env:
+                        - name: JAVA_TOOL_OPTIONS
+                          value: -Xmx128m -XX:+UseSerialGC
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: frontend
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: frontend
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: frontend
+                        resources:
+                          requests:
+                            memory: 32Mi
+                          limits:
+                            memory: 64Mi
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: admin
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: admin
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: admin
+                        resources:
+                          requests:
+                            memory: 32Mi
+                          limits:
+                            memory: 64Mi
           images:
             - 'backend-image=ghcr.io/robbertvdzon/hkh-autopilot-backend:sha-{{.head_short_sha_7}}'
             - 'frontend-image=ghcr.io/robbertvdzon/hkh-autopilot-frontend:sha-{{.head_short_sha_7}}'

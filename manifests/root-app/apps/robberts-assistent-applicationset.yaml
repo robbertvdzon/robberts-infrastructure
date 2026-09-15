@@ -62,6 +62,70 @@ spec:
                 - op: add
                   path: /spec/host
                   value: 'groentetuin-pr-{{.number}}.vdzonsoftware.nl'
+            # Apply memory profiles after branch overlays, also for older PR heads.
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: robberts-assistent-backend
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: robberts-assistent-backend
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: app
+                        resources:
+                          requests:
+                            memory: 288Mi
+                          limits:
+                            memory: 384Mi
+                        env:
+                        - name: JAVA_TOOL_OPTIONS
+                          value: -Xmx128m -XX:+UseSerialGC
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: robberts-assistent-frontend
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: robberts-assistent-frontend
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: app
+                        resources:
+                          requests:
+                            memory: 32Mi
+                          limits:
+                            memory: 64Mi
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: groentetuin-frontend
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: groentetuin-frontend
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: app
+                        resources:
+                          requests:
+                            memory: 32Mi
+                          limits:
+                            memory: 64Mi
           images:
             # Lookup-naam moet de FULL URL zijn — deploy/base/kustomization.yaml
             # heeft de image-placeholders al gemapped naar de volle URL.

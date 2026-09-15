@@ -70,6 +70,70 @@ spec:
                 - op: replace
                   path: /spec/host
                   value: 'pnf-pr-{{.number}}.vdzonsoftware.nl'
+            # Apply memory profiles after branch overlays, also for older PR heads.
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: backend
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: backend
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: backend
+                        resources:
+                          requests:
+                            memory: 320Mi
+                          limits:
+                            memory: 448Mi
+                        env:
+                        - name: JAVA_TOOL_OPTIONS
+                          value: -Xmx192m -XX:+UseSerialGC
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: frontend
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: frontend
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: frontend
+                        resources:
+                          requests:
+                            memory: 32Mi
+                          limits:
+                            memory: 64Mi
+            - target:
+                group: apps
+                version: v1
+                kind: Deployment
+                name: reader
+              patch: |-
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: reader
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - name: reader
+                        resources:
+                          requests:
+                            memory: 32Mi
+                          limits:
+                            memory: 64Mi
           images:
             # PR-specifieke image-tags. De build-workflow tagt elke
             # PR-commit met sha-<short>. `head_short_sha_7` is een ingebouwde
