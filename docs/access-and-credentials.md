@@ -30,7 +30,7 @@ install, alleen de discipline eromheen is nieuw:
 Na zo'n sessie: `export KUBECONFIG=...` weer uitzetten / nieuwe shell openen
 zodat je niet per ongeluk verder werkt met het admin-account.
 
-## Niveau 2: `claude-agent` (read-only + 1 bewuste uitzondering)
+## Niveau 2: `claude-agent` (alleen lezen)
 
 **Credential**: ServiceAccount `claude-agent` in namespace `agent-access`
 (manifests in [`../manifests/agent-access/`](../manifests/agent-access/)),
@@ -42,33 +42,20 @@ gebonden aan:
 - een kleine aanvullende ClusterRole `agent-extra-view` (MachineConfig,
   MachineConfigPool, ClusterOperator, ArgoCD Applications/ApplicationSets —
   dingen die niet gegarandeerd aggregeren naar `view`)
-- **`agent-preview-cleanup`**: de ENE bewuste uitzondering — `delete` op
-  `projects`/`namespaces`, cluster-breed. Nodig omdat
-  `OcPreviewEnvironmentCleaner.kt` (software-factory) automatisch
-  `oc delete project <pnf-pr-N>` draait zodra een preview-PR sluit (ArgoCD's
-  eigen prune ruimt de Application-resources op, niet de namespace zelf).
-  RBAC kan niet op naam-patroon filteren, dus dit account kán in theorie
-  **elke** namespace verwijderen — geaccepteerd risico, expliciet gekozen
-  boven een aparte credential per code-pad of het herontwerpen van de
-  preview-cleanup-flow (zie de opties die overwogen zijn: los een aparte
-  credential, of ArgoCD de namespace zelf laten prunen).
 
-**Verificatie** (uitgevoerd 2026-07-06):
-```
-✓ oc get pods -A                          → werkt
-✓ oc get machineconfig                    → werkt
-✓ oc get applications -n argocd           → werkt
-✗ oc get secrets -n software-factory      → Forbidden
-✗ oc create configmap ...                 → Forbidden
-✗ oc scale deployment/...                 → Forbidden
-✓ oc auth can-i delete projects           → yes (de bewuste uitzondering)
-✗ oc auth can-i delete pods               → no
-```
+De vroegere namespace-verwijderrechten zijn op 2026-09-15 verwijderd nadat live was bewezen dat
+`argocd:preview-reconciler` de volledige lifecycle zelfstandig afhandelt. De aparte
+`software-factory:sf-preview-cleanup`-identiteit behoudt eveneens haar opruimrechten.
 
-**Waar gebruikt**: `SF_KUBECONFIG` in `software-factory/secrets.env` wijst nu
-naar `~/okd-sno/sno/auth/kubeconfig-agent-readonly` (was: het admin-
-kubeconfig). Dit is wat Claude Code, de tester/refiner-agent-containers
-(`DockerAgentRuntime.kt`) en de Telegram-assistent gemount krijgen.
+**Verificatie**: de live canary `sf-test-pr-5` bleef behouden met een open PR en werd na sluiting,
+vijf observaties en 737 seconden door de reconciler verwijderd. Ook 22 oude gesloten
+Robberts Assistent-previews zijn gecontroleerd overgenomen en verwijderd. Productienamespaces
+zijn niet aangeraakt. `claude-agent` mag logs/status lezen en geen secrets, pods of namespaces
+verwijderen. Agent Runtime mount deze clustercredential niet.
+
+**Waar gebruikt**: uitsluitend begeleid clusteronderzoek of expliciet beheerde services.
+De oude beschrijving van credentialmounts in `DockerAgentRuntime.kt` is vervangen door de
+afgeschermde Agent Runtime v2-uitvoering; geen persoonlijke kubeconfig of breed profiel in jobs.
 
 **Rotatie**: het token verloopt niet (legacy SA-token-secret, bewust — dit is
 een langlevende tool-credential). Bij lek/rotatie: verwijder

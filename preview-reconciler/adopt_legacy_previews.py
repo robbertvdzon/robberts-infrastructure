@@ -13,6 +13,7 @@ def read(*args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--reviewed-closed", action="append", default=[], metavar="NAMESPACE", help="Explicitly reviewed closed preview with disposable workloads and no PVC")
     options = parser.parse_args()
     namespaces = read("oc", "get", "namespaces", "-o", "json")["items"]
     applications = read("oc", "get", "applications", "-n", "argocd", "-o", "json")["items"]
@@ -36,7 +37,7 @@ def main():
                 continue
         elif pr.get("state") == "closed":
             workloads = read("oc", "get", "all,pvc", "-n", name, "-o", "json")["items"]
-            if workloads or owners:
+            if owners or (workloads and (name not in options.reviewed_closed or any(item["kind"] == "PersistentVolumeClaim" for item in workloads))):
                 print(f"SKIP {name}: resources remain; review required")
                 continue
         else:

@@ -4,6 +4,5 @@ resources:
   - namespace.yaml
   - serviceaccount.yaml
   - clusterrole-extra-view.yaml
-  - clusterrole-preview-cleanup.yaml
   - clusterrolebindings.yaml
   - token-secret.yaml
