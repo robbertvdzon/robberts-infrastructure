@@ -17,7 +17,8 @@ def wiring(name,container,prefix):
  env=[{'name':key,'value':None,'valueFrom':{'secretKeyRef':{'name':'preview-postgres','key':field}}} for key,field in [(url,'url'),(user,'username'),(password,'password'),('SPRING_DATASOURCE_URL','url'),('SPRING_DATASOURCE_USERNAME','username'),('SPRING_DATASOURCE_PASSWORD','password')]]
  env += [{'name':'SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE','value':'5'},{'name':'SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE','value':'0'}]
  if prefix=='PNF':
-  env += [{'name':key,'value':value,'valueFrom':None} for key,value in [('PNF_AGENT_RUNTIME_TOKEN',''),('PNF_GOOGLE_CLIENT_ID',''),('PNF_GOOGLE_USERS','preview@pnf.invalid'),('APP_JWT_SECRET','')]]
+  env += [{'name':key,'value':value,'valueFrom':None} for key,value in [('PNF_GOOGLE_CLIENT_ID',''),('PNF_GOOGLE_USERS','preview@pnf.invalid=preview'),('APP_JWT_SECRET','')]]
+  env += [{'name':'PNF_AGENT_RUNTIME_TOKEN','value':None,'valueFrom':{'secretKeyRef':{'name':'pnf-preview-runtime','key':'PNF_AGENT_RUNTIME_TOKEN'}}},{'name':'PNF_AGENT_RUNTIME_URL','value':'https://agent-runtime-acceptance.vdzonsoftware.nl'}]
  return {'apiVersion':'apps/v1','kind':'Deployment','metadata':{'name':name},'spec':{'template':{'metadata':{'labels':{'postgres.vdzonsoftware.nl/client':'true'}},'spec':{'containers':[{'name':container,'env':env,'volumeMounts':[{'name':'central-postgres-ca','mountPath':'/etc/postgres-ca','readOnly':True}]}],'volumes':[{'name':'central-postgres-ca','secret':{'secretName':'preview-postgres','items':[{'key':'ca.crt','path':'ca.crt'}]}}]}}}}
 
 for app,backends in APPS.items():

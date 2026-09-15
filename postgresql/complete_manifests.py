@@ -27,6 +27,7 @@ b.write(folder/'operations.yaml',ops)
 for tier in ['production','nonproduction']:
  ns='postgres-'+tier;folder=b.ROOT/'manifests/postgresql'/tier;ops=[]
  pod=b.base_pod(ns,'metrics');pod['restartPolicy']='Always'
+ pod['containers'][0]['env'].append({'name':'PGOPTIONS','value':'-c default_transaction_read_only=on -c statement_timeout=10000'})
  if tier=='production':hdd(pod,True)
  for e in pod['containers'][0]['env']:
   if e['name']=='PGUSER':e['value']='platform_monitor'
@@ -36,6 +37,8 @@ for tier in ['production','nonproduction']:
  ops.append(b.resource('Deployment','postgres-metrics',ns,api='apps/v1',spec={'replicas':1,'selector':{'matchLabels':{'app':'postgres-metrics'}},'template':{'metadata':{'labels':labels},'spec':pod}}))
  svc=b.resource('Service','postgres-metrics',ns,spec={'selector':{'app':'postgres-metrics'},'ports':[{'name':'metrics','port':9187,'targetPort':9187}]});svc['metadata']['labels']={'app':'postgres-metrics'};ops.append(svc)
  ops.append(b.resource('NetworkPolicy','metrics-ingress',ns,api='networking.k8s.io/v1',spec={'podSelector':{'matchLabels':{'app':'postgres-metrics'}},'policyTypes':['Ingress'],'ingress':[{'from':[{'namespaceSelector':{'matchLabels':{'kubernetes.io/metadata.name':'openshift-monitoring'}}}],'ports':[{'protocol':'TCP','port':9187}]}]}))
+ ops.append(b.resource('Role','postgres-metrics-discovery',ns,api='rbac.authorization.k8s.io/v1',rules=[{'apiGroups':[''],'resources':['pods','services','endpoints'],'verbs':['get','list','watch']},{'apiGroups':['discovery.k8s.io'],'resources':['endpointslices'],'verbs':['get','list','watch']}]))
+ ops.append(b.resource('RoleBinding','postgres-metrics-discovery',ns,api='rbac.authorization.k8s.io/v1',subjects=[{'kind':'ServiceAccount','name':'prometheus-k8s','namespace':'openshift-monitoring'}],roleRef={'apiGroup':'rbac.authorization.k8s.io','kind':'Role','name':'postgres-metrics-discovery'}))
  ops.append(b.resource('ServiceMonitor','central-postgres',ns,api='monitoring.coreos.com/v1',spec={'selector':{'matchLabels':{'app':'postgres-metrics'}},'endpoints':[{'port':'metrics','interval':'60s','scrapeTimeout':'20s'}]}))
  rules=[{'alert':'CentralPostgresVolumeFull','expr':f'kubelet_volume_stats_available_bytes{{namespace="{ns}",persistentvolumeclaim="postgres-data"}} / kubelet_volume_stats_capacity_bytes{{namespace="{ns}",persistentvolumeclaim="postgres-data"}} < 0.15','for':'5m','labels':{'severity':'critical'},'annotations':{'summary':'PostgreSQL volume minder dan 15% vrij'}},
  {'alert':'CentralPostgresUnavailable','expr':f'central_postgres_up{{namespace="{ns}"}} == 0','for':'2m','labels':{'severity':'critical'},'annotations':{'summary':'Centrale PostgreSQL niet bereikbaar ('+tier+')'}},
@@ -46,7 +49,21 @@ for tier in ['production','nonproduction']:
    rules += [{'alert':'CentralPostgres'+kind.title()+'Failed','expr':f'central_postgres_{kind}_failed{{namespace="{ns}"}} > 0','for':'5m','labels':{'severity':'critical'},'annotations':{'summary':'PostgreSQL '+kind+' mislukt of ontbreekt'}},
     {'alert':'CentralPostgres'+kind.title()+'Stale','expr':f'time() - central_postgres_{kind}_last_success{{namespace="{ns}"}} > {hours*3600}','for':'5m','labels':{'severity':'critical'},'annotations':{'summary':'PostgreSQL '+kind+' is te oud'}}]
   rules.append({'alert':'CentralPostgresBackupDiskFull','expr':f'central_postgres_backup_free_bytes{{namespace="{ns}"}} / central_postgres_backup_total_bytes{{namespace="{ns}"}} < 0.1','for':'5m','labels':{'severity':'critical'},'annotations':{'summary':'Backup-HDD minder dan 10% vrij'}})
+ for alert,expr,period,summary in [
+  ('MemoryHigh',f'container_memory_working_set_bytes{{namespace="{ns}",container="postgres"}} / on(namespace,pod,container) kube_pod_container_resource_limits{{namespace="{ns}",container="postgres",resource="memory"}} > 0.85','15m','PostgreSQL geheugengebruik boven 85%'),
+  ('OOM',f'increase(kube_pod_container_status_restarts_total{{namespace="{ns}",container="postgres"}}[10m]) > 0 and on(namespace,pod,container) kube_pod_container_status_last_terminated_reason{{namespace="{ns}",container="postgres",reason="OOMKilled"}} == 1','0m','PostgreSQL herstart na geheugentekort'),
+  ('LongTransaction',f'central_postgres_oldest_transaction_seconds{{namespace="{ns}"}} > 300','5m','PostgreSQL transactie langer dan vijf minuten'),
+  ('LockWait',f'central_postgres_waiting_locks{{namespace="{ns}"}} > 0','5m','PostgreSQL transacties wachten op locks'),
+  ('VacuumAge',f'central_postgres_transaction_id_age{{namespace="{ns}"}} > 200000000','10m','Controleer autovacuum en transaction-ID-leeftijd'),
+  ('WALGrowth',f'central_postgres_wal_bytes{{namespace="{ns}"}} > 4294967296','10m','PostgreSQL WAL groter dan 4 GiB'),
+ ]:
+  rules.append({'alert':'CentralPostgres'+alert,'expr':expr,'for':period,'labels':{'severity':'warning'},'annotations':{'summary':summary}})
+ if tier=='nonproduction':
+  rules.append({'alert':'CentralPostgresPreviewOrphan','expr':f'central_postgres_oldest_preview_orphan_seconds{{namespace="{ns}"}} > 90000','for':'5m','labels':{'severity':'warning'},'annotations':{'summary':'Previewdatabase wacht te lang op opruimen'}})
+  rules.append({'alert':'CentralPostgresPreviewControllerUnavailable','expr':f'kube_deployment_status_replicas_available{{namespace="{ns}",deployment="postgres-preview-controller"}} < 1','for':'3m','labels':{'severity':'critical'},'annotations':{'summary':'Previewdatabase-provisioning is niet gezond'}})
  ops.append(b.resource('PrometheusRule','central-postgres',ns,api='monitoring.coreos.com/v1',spec={'groups':[{'name':'central-postgres.rules','rules':rules}]}))
+ for o in ops:
+  if o['kind']=='Deployment':o['metadata']['annotations']={'argocd.argoproj.io/sync-wave':'2'}
  b.write(folder/'monitoring.yaml',ops)
 ns='postgres-nonproduction';folder=b.ROOT/'manifests/postgresql/nonproduction';ops=[]
 pod=b.base_pod(ns,'controller',True);pod['restartPolicy']='Always';pod['automountServiceAccountToken']=True
@@ -69,6 +86,7 @@ policy=b.resource('ValidatingAdmissionPolicy','postgres-preview-controller-bound
  {'expression':"request.resource.resource != 'deployments' || object.metadata.name in ['backend','runtime','product-factory-backend']",'message':'Only approved preview backends may be changed'}]})
 ops.append(policy)
 ops.append(b.resource('ValidatingAdmissionPolicyBinding','postgres-preview-controller-boundary',api='admissionregistration.k8s.io/v1',spec={'policyName':'postgres-preview-controller-boundary','validationActions':['Deny']}))
+ops[0]['metadata']['annotations']={'argocd.argoproj.io/sync-wave':'2'}
 b.write(folder/'controller.yaml',ops)
 for tier in ['production','nonproduction']:
  folder=b.ROOT/'manifests/postgresql'/tier

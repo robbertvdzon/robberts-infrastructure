@@ -14,7 +14,7 @@ if not STATE.exists() and (ROOT/'manifests/postgresql/production/sealed-credenti
  raise RuntimeError('Refusing to replace deployed credentials without the original private state')
 state=json.loads(STATE.read_text()) if STATE.exists() else {}
 PG='docker.io/library/postgres@sha256:1938c16e9d2f10a6a3623b344b64ae8d45f407f2c5f34f0979468bb689b9227a'
-PLATFORM=os.environ.get('PLATFORM_IMAGE','ghcr.io/robbertvdzon/postgresql-platform@sha256:cbf713d8146f407dd1f1b72214546dacef73b209c8bb621ad02a7669dfc87701')
+PLATFORM=os.environ.get('PLATFORM_IMAGE','ghcr.io/robbertvdzon/postgresql-platform@sha256:b5cd0eb9b8e866bec208dcc83b36eeddd6fb46898e490bb0e04651124607c6af')
 REGISTRY={
 'production':[{'name':n,**opts} for n,opts in [('ar_prod',{}),('hkh_prod',{}),('hkh_autopilot_prod',{}),('pf_prod',{}),('pf_legacy_prod',{'archive':True}),('pvdd_prod',{}),('sf_prod',{'schema':'software_factory'})]],
 'nonproduction':[{'name':n} for n in ['ar_acc','hkh_acc','hkh_autopilot_acc','pf_acc','pvdd_acc']]}
@@ -100,7 +100,7 @@ host all all 0.0.0.0/0 reject
  docs.append(resource('StatefulSet','postgres',ns,api='apps/v1',spec={'serviceName':'postgres-headless','replicas':1,'updateStrategy':{'type':'OnDelete'},'selector':{'matchLabels':{'app':'central-postgres'}},'template':{'metadata':{'labels':{'app':'central-postgres'}},'spec':pod}}))
  provision=base_pod(ns,'provision',True);provision['containers'][0]['volumeMounts'].append({'name':'credentials','mountPath':'/credentials','readOnly':True});provision['volumes'].append({'name':'credentials','secret':{'secretName':'postgres-credentials'}})
  job=resource('Job','postgres-provision',ns,api='batch/v1',spec={'backoffLimit':3,'activeDeadlineSeconds':600,'template':{'metadata':{'labels':{'postgres.vdzonsoftware.nl/operator':'true'}},'spec':provision}})
- job['metadata']['annotations']={'argocd.argoproj.io/hook':'PostSync','argocd.argoproj.io/hook-delete-policy':'BeforeHookCreation,HookSucceeded'};docs.append(job)
+ job['metadata']['annotations']={'argocd.argoproj.io/hook':'Sync','argocd.argoproj.io/sync-wave':'1','argocd.argoproj.io/hook-delete-policy':'BeforeHookCreation,HookSucceeded'};docs.append(job)
  # Default deny, explicit backend access, and operator/monitor networking.
  docs.append(resource('NetworkPolicy','default-deny',ns,api='networking.k8s.io/v1',spec={'podSelector':{},'policyTypes':['Ingress','Egress']}))
  clients=['agent-runtime','hkh','hkh-autopilot','product-factory','pvdd','software-factory'] if prod else ['agent-runtime-acceptance','hkh-acceptance','hkh-autopilot-acceptance','product-factory-acceptance','pvdd-acceptance']

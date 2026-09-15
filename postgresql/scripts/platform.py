@@ -162,6 +162,7 @@ def backup():
         encrypt(globals_file, globals_target/(stamp+'.sql.age'), recipient)
         for item in cfg['databases']:
             name = item['name']; identifier(name)
+            started=time.time()
             try:
                 dump = tmp/(name+'.dump')
                 import psycopg2
@@ -192,7 +193,7 @@ def backup():
                 encrypt(dump, target/(name+'.dump.age'), recipient)
                 encrypt(manifest_file, target/'metadata.json.age', recipient)
                 (target/'complete.json').write_text(json.dumps({'run': stamp, 'epoch': manifest['epoch']}))
-                state['databases'][name] = {'success': time.time(), 'run': stamp, 'failed': False}
+                state['databases'][name] = {'success': time.time(), 'run': stamp, 'failed': False, 'duration_seconds':time.time()-started}
                 records = [json.loads(x.read_text()) for x in (root/name).glob('*/complete.json')]
                 retained = select_retained(records, time.time())
                 for old in records:
@@ -222,6 +223,7 @@ def restorecheck():
     for item in registry()['databases']:
         name = item['name']; check = 'restorecheck_' + name + '_' + secrets.token_hex(4)
         password = secrets.token_urlsafe(40)
+        started=time.time()
         try:
             candidates = sorted(Path('/backups', name).glob('*/complete.json'))
             if not candidates: raise RuntimeError('no complete backup')
@@ -250,7 +252,7 @@ def restorecheck():
                 if invalid != '0': raise RuntimeError('invalid restored index')
                 if sql(f"SELECT count(*) FROM pg_roles WHERE rolcanlogin AND rolname NOT IN ('postgres','platform_backup',{literal(check)}) AND has_database_privilege(oid,{literal(check)},'CONNECT');") != '0':
                     raise RuntimeError('restored database is accessible to another app')
-                state['databases'][name] = {'success': time.time(), 'run': folder.name}
+                state['databases'][name] = {'success': time.time(), 'run': folder.name, 'duration_seconds':time.time()-started}
                 log('restore_ok', database=name, run=folder.name)
         except Exception as exc:
             state['failed'] = True; state['databases'][name] = {'failed': True}
@@ -293,6 +295,7 @@ def preview_cycle(kube):
     namespaces = kube.request('GET', '/api/v1/namespaces')['items']
     alive = {n['metadata']['uid']: n for n in namespaces if PREVIEW.fullmatch(n['metadata']['name']) and not n['metadata'].get('deletionTimestamp')}
     sql('CREATE TABLE IF NOT EXISTS public.preview_registry (uid text PRIMARY KEY, namespace text NOT NULL, database_name text UNIQUE NOT NULL, missing_since timestamptz);')
+    sql('GRANT SELECT ON public.preview_registry TO platform_monitor;')
     registered = json.loads(sql("SELECT coalesce(json_agg(t),'[]') FROM (SELECT uid,namespace,database_name,extract(epoch FROM missing_since) missing_since FROM public.preview_registry) t;"))
     master = Path('/controller/master').read_text().strip()
     for uid, nsobj in alive.items():
@@ -348,20 +351,38 @@ def metrics():
             lines=[]
             try:
                 rows=json.loads(sql("SELECT coalesce(json_agg(t),'[]') FROM (SELECT datname,pg_database_size(oid) bytes FROM pg_database WHERE NOT datistemplate) t;"))
-                lines.append('central_postgres_up 1')
                 for r in rows:
                     if not NAME.fullmatch(r['datname']):continue
                     lines.append(f'central_postgres_database_bytes{{database="{r["datname"]}"}} {r["bytes"]}')
                 lines.append('central_postgres_connections '+sql("SELECT count(*) FROM pg_stat_activity WHERE backend_type='client backend';"))
                 lines.append('central_postgres_max_connections '+sql('SHOW max_connections;'))
-            except Exception: lines.append('central_postgres_up 0')
+                stats=json.loads(sql("SELECT coalesce(json_agg(t),'[]') FROM (SELECT s.datname,s.deadlocks,s.temp_bytes,age(d.datfrozenxid) xid_age FROM pg_stat_database s JOIN pg_database d ON d.oid=s.datid WHERE NOT d.datistemplate) t;"))
+                for r in stats:
+                    if not NAME.fullmatch(r['datname']):continue
+                    for key,metric in [('deadlocks','deadlocks_total'),('temp_bytes','temp_bytes_total'),('xid_age','transaction_id_age')]:
+                        lines.append(f'central_postgres_{metric}{{database="{r["datname"]}"}} {r[key]}')
+                sessions=json.loads(sql("SELECT coalesce(json_agg(t),'[]') FROM (SELECT datname,usename,count(*) connections FROM pg_stat_activity WHERE backend_type='client backend' GROUP BY 1,2) t;"))
+                for r in sessions:
+                    if NAME.fullmatch(r['datname'] or '') and NAME.fullmatch(r['usename'] or ''):
+                        lines.append(f'central_postgres_role_connections{{database="{r["datname"]}",role="{r["usename"]}"}} {r["connections"]}')
+                lines.append('central_postgres_waiting_locks '+sql('SELECT count(*) FROM pg_locks WHERE NOT granted;'))
+                lines.append('central_postgres_oldest_transaction_seconds '+sql("SELECT coalesce(max(extract(epoch FROM now()-xact_start)),0) FROM pg_stat_activity WHERE backend_type='client backend';"))
+                lines.append('central_postgres_wal_bytes '+sql('SELECT coalesce(sum(size),0) FROM pg_ls_waldir();'))
+                if sql("SELECT to_regclass('public.preview_registry') IS NOT NULL;")=='t':
+                    lines.append('central_postgres_preview_databases '+sql('SELECT count(*) FROM public.preview_registry;'))
+                    lines.append('central_postgres_oldest_preview_orphan_seconds '+sql('SELECT coalesce(max(extract(epoch FROM now()-missing_since)),0) FROM public.preview_registry;'))
+
+                lines.append('central_postgres_up 1')
+            except Exception: lines=['central_postgres_up 0']
             for filename,prefix in [('status.json','backup'),('restore-status.json','restore')]:
                 path=Path('/backups')/filename
                 if path.exists():
                     state=json.loads(path.read_text())
                     lines.append(f'central_postgres_{prefix}_failed {1 if state.get("failed") else 0}')
                     for db,r in state.get('databases',{}).items():
-                        if NAME.fullmatch(db): lines.append(f'central_postgres_{prefix}_last_success{{database="{db}"}} {r.get("success",0)}')
+                        if NAME.fullmatch(db):
+                            lines.append(f'central_postgres_{prefix}_last_success{{database="{db}"}} {r.get("success",0)}')
+                            lines.append(f'central_postgres_{prefix}_duration_seconds{{database="{db}"}} {r.get("duration_seconds",0)}')
                 else:lines.append(f'central_postgres_{prefix}_failed 1')
             if Path('/backups').exists():
                 disk=shutil.disk_usage('/backups')
