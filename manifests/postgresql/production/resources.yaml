@@ -215,7 +215,7 @@ data:
     \n    },\n    {\n      \"name\": \"pf_prod\"\n    },\n    {\n      \"name\": \"\
     pf_legacy_prod\",\n      \"archive\": true\n    },\n    {\n      \"name\": \"\
     pvdd_prod\"\n    },\n    {\n      \"name\": \"sf_prod\",\n      \"schema\": \"\
-    software_factory\"\n    }\n  ]\n}"
+    software_factory\"\n    },\n    {\n      \"name\": \"mch_prod\"\n    }\n  ]\n}"
 ---
 apiVersion: v1
 kind: Service
@@ -535,6 +535,12 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: software-factory
+      podSelector:
+        matchLabels:
+          postgres.vdzonsoftware.nl/client: 'true'
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: maceclubheemskerk
       podSelector:
         matchLabels:
           postgres.vdzonsoftware.nl/client: 'true'
