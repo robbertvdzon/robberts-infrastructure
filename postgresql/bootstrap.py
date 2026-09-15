@@ -10,9 +10,11 @@ PRIVATE=Path.home()/'.local/share/postgresql-consolidation/20260915'
 PRIVATE.mkdir(parents=True,exist_ok=True);PRIVATE.chmod(0o700)
 os.umask(0o077)
 STATE=PRIVATE/'state.json'
+if not STATE.exists() and (ROOT/'manifests/postgresql/production/sealed-credentials.yaml').exists():
+ raise RuntimeError('Refusing to replace deployed credentials without the original private state')
 state=json.loads(STATE.read_text()) if STATE.exists() else {}
 PG='docker.io/library/postgres@sha256:1938c16e9d2f10a6a3623b344b64ae8d45f407f2c5f34f0979468bb689b9227a'
-PLATFORM=os.environ.get('PLATFORM_IMAGE','ghcr.io/robbertvdzon/postgresql-platform:consolidation-20260915')
+PLATFORM=os.environ.get('PLATFORM_IMAGE','ghcr.io/robbertvdzon/postgresql-platform@sha256:068c7115bbff31519e889e2f5680ba50acefd1c47ffc461ca61da98bfed47193')
 REGISTRY={
 'production':[{'name':n,**opts} for n,opts in [('ar_prod',{}),('hkh_prod',{}),('hkh_autopilot_prod',{}),('pf_prod',{}),('pf_legacy_prod',{'archive':True}),('pvdd_prod',{}),('sf_prod',{'schema':'software_factory'})]],
 'nonproduction':[{'name':n} for n in ['ar_acc','hkh_acc','hkh_autopilot_acc','pf_acc','pvdd_acc']]}
@@ -83,7 +85,7 @@ host all all 0.0.0.0/0 reject
  for name,headless in [('postgres',False),('postgres-headless',True)]:
   docs.append(resource('Service',name,ns,spec={'selector':{'app':'central-postgres'},'ports':[{'name':'postgres','port':5432,'targetPort':5432}],**({'clusterIP':'None'} if headless else {})}))
  pod={'serviceAccountName':'postgres-server','automountServiceAccountToken':False,'terminationGracePeriodSeconds':120,
-  'securityContext':{'runAsNonRoot':True,'seccompProfile':{'type':'RuntimeDefault'}},
+  'securityContext':{'runAsNonRoot':True,'seLinuxOptions':{'type':'spc_t'},'seccompProfile':{'type':'RuntimeDefault'}},
   'initContainers':[{'name':'tls-permissions','image':PG,'command':['sh','-ec','cp /tls/tls.crt /run/postgres-tls/server.crt; cp /tls/tls.key /run/postgres-tls/server.key; chmod 600 /run/postgres-tls/server.key'],
    'securityContext':{'allowPrivilegeEscalation':False,'capabilities':{'drop':['ALL']}},'volumeMounts':[{'name':'tls','mountPath':'/tls','readOnly':True},{'name':'tls-private','mountPath':'/run/postgres-tls'}]}],
   'containers':[{'name':'postgres','image':PG,'args':['postgres','-c','config_file=/config/postgresql.conf'],
@@ -106,7 +108,7 @@ host all all 0.0.0.0/0 reject
  if not prod:peers.append({'namespaceSelector':{'matchLabels':{'preview.vdzonsoftware.nl/managed-by':'preview-reconciler'}},'podSelector':{'matchLabels':{'postgres.vdzonsoftware.nl/client':'true'}}})
  peers.append({'podSelector':{'matchLabels':{'postgres.vdzonsoftware.nl/operator':'true'}}})
  docs.append(resource('NetworkPolicy','postgres-ingress',ns,api='networking.k8s.io/v1',spec={'podSelector':{'matchLabels':{'app':'central-postgres'}},'policyTypes':['Ingress'],'ingress':[{'from':peers,'ports':[{'protocol':'TCP','port':5432}]}]}))
- docs.append(resource('NetworkPolicy','operator-egress',ns,api='networking.k8s.io/v1',spec={'podSelector':{'matchLabels':{'postgres.vdzonsoftware.nl/operator':'true'}},'policyTypes':['Egress'],'egress':[{'to':[{'podSelector':{'matchLabels':{'app':'central-postgres'}}}],'ports':[{'protocol':'TCP','port':5432}]},{'ports':[{'protocol':'UDP','port':53},{'protocol':'TCP','port':53}]},{'ports':[{'protocol':'TCP','port':443},{'protocol':'TCP','port':6443}]}]}))
+ docs.append(resource('NetworkPolicy','operator-egress',ns,api='networking.k8s.io/v1',spec={'podSelector':{'matchLabels':{'postgres.vdzonsoftware.nl/operator':'true'}},'policyTypes':['Egress'],'egress':[{'to':[{'podSelector':{'matchLabels':{'app':'central-postgres'}}}],'ports':[{'protocol':'TCP','port':5432}]},{'ports':[{'protocol':'UDP','port':53},{'protocol':'TCP','port':53},{'protocol':'UDP','port':5353},{'protocol':'TCP','port':5353}]},{'ports':[{'protocol':'TCP','port':443},{'protocol':'TCP','port':6443}]}]}))
  write(folder/'resources.yaml',docs)
  write(folder/'kustomization.yaml',[{'apiVersion':'kustomize.config.k8s.io/v1beta1','kind':'Kustomization','resources':['resources.yaml','sealed-credentials.yaml','sealed-tls.yaml']}])
  app=resource('Application','postgres-'+tier,'argocd',api='argoproj.io/v1alpha1',spec={'project':'default','source':{'repoURL':'https://github.com/robbertvdzon/robberts-infrastructure.git','targetRevision':'main','path':'manifests/postgresql/'+tier},'destination':{'server':'https://kubernetes.default.svc','namespace':ns},'syncPolicy':{'automated':{'prune':False,'selfHeal':True},'syncOptions':['CreateNamespace=true']}})

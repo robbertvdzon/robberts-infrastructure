@@ -176,8 +176,11 @@ def backup():
                         for sc,tab in tables:
                             cur.execute(ps.SQL('SELECT count(*) FROM {}.{}').format(ps.Identifier(sc),ps.Identifier(tab)))
                             counts[sc+'.'+tab] = cur.fetchone()[0]
-                        cur.execute(ps.SQL('SELECT version,type,success,checksum FROM {}.flyway_schema_history ORDER BY installed_rank').format(ps.Identifier(item.get('schema','public'))))
-                        history = cur.fetchall()
+                        cur.execute('SELECT to_regclass(%s)',(item.get('schema','public')+'.flyway_schema_history',))
+                        if cur.fetchone()[0] is not None:
+                            cur.execute(ps.SQL('SELECT version,type,success,checksum FROM {}.flyway_schema_history ORDER BY installed_rank').format(ps.Identifier(item.get('schema','public'))))
+                            history = cur.fetchall()
+                        else: history = []
 
                 run(['pg_restore', '--list', str(dump)])
                 target = root/name/stamp; target.mkdir(parents=True, exist_ok=False)
@@ -236,11 +239,11 @@ def restorecheck():
                     sc, tab = table.split('.',1)
                     if int(sql(f'SELECT count(*) FROM {identifier(sc)}.{identifier(tab)};',check,e)) != expected:
                         raise RuntimeError('restored table count mismatch')
-                current_history = json.loads(sql(f"SELECT coalesce(json_agg(t),'[]') FROM (SELECT version,type,success,checksum FROM {identifier(item.get('schema','public'))}.flyway_schema_history ORDER BY installed_rank) t;",check,e))
+                current_history = json.loads(sql(f"SELECT coalesce(json_agg(t),'[]') FROM (SELECT version,type,success,checksum FROM {identifier(item.get('schema','public'))}.flyway_schema_history ORDER BY installed_rank) t;",check,e)) if manifest['flyway'] else []
                 if [list(r.values()) for r in current_history] != manifest['flyway']:
                     raise RuntimeError('restored Flyway history mismatch')
                 schema = identifier(item.get('schema', 'public'))
-                failed = sql(f'SELECT count(*) FROM {schema}.flyway_schema_history WHERE NOT success;', check, e)
+                failed = sql(f'SELECT count(*) FROM {schema}.flyway_schema_history WHERE NOT success;', check, e) if manifest['flyway'] else '0'
                 if failed != '0': raise RuntimeError('failed Flyway migration in restored database')
                 invalid = sql("SELECT count(*) FROM pg_index WHERE NOT indisvalid;", check, e)
                 if invalid != '0': raise RuntimeError('invalid restored index')
@@ -343,8 +346,11 @@ def preview_cycle(kube):
 def controller():
     kube = Kube()
     while True:
+        failed=False
         try: preview_cycle(kube)
-        except Exception as exc: log('preview_reconcile_failed', error=type(exc).__name__)
+        except Exception as exc:
+            failed=True; log('preview_reconcile_failed', error=type(exc).__name__)
+        Path('/tmp/controller-status.json').write_text(json.dumps({'time':time.time(),'failed':failed}))
         time.sleep(60)
 
 def metrics():
