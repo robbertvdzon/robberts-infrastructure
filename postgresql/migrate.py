@@ -54,7 +54,7 @@ COMMIT;"""
  history=json.loads(sql(ns,pod,db,f"BEGIN READ ONLY;SELECT coalesce(json_agg(t),'[]') FROM (SELECT version,type,success,checksum FROM {ident(schema)}.flyway_schema_history ORDER BY installed_rank)t;COMMIT;"))
  sequences=json.loads(sql(ns,pod,db,"BEGIN READ ONLY;SELECT coalesce(json_agg(t),'[]') FROM (SELECT schemaname,sequencename,last_value FROM pg_sequences WHERE schemaname NOT IN ('pg_catalog','information_schema') ORDER BY 1,2)t;COMMIT;"))
  return {'counts':counts,'flyway':history,'sequences':sequences}
-def secret_ref(name,key):return {'name':name,'valueFrom':{'secretKeyRef':{'name':'central-postgres','key':key}}}
+def secret_ref(name,key):return {'name':name,'value':None,'valueFrom':{'configMapKeyRef':None,'secretKeyRef':{'name':'central-postgres','key':key}}}
 def prepare():
  for key,m in MAP.items():
   ns,repo,overlay,backend,db,kind,old,tier,urlvar,uservar,passvar=m

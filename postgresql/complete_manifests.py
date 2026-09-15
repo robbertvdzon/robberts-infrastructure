@@ -37,7 +37,8 @@ for tier in ['production','nonproduction']:
  svc=b.resource('Service','postgres-metrics',ns,spec={'selector':{'app':'postgres-metrics'},'ports':[{'name':'metrics','port':9187,'targetPort':9187}]});svc['metadata']['labels']={'app':'postgres-metrics'};ops.append(svc)
  ops.append(b.resource('NetworkPolicy','metrics-ingress',ns,api='networking.k8s.io/v1',spec={'podSelector':{'matchLabels':{'app':'postgres-metrics'}},'policyTypes':['Ingress'],'ingress':[{'from':[{'namespaceSelector':{'matchLabels':{'kubernetes.io/metadata.name':'openshift-monitoring'}}}],'ports':[{'protocol':'TCP','port':9187}]}]}))
  ops.append(b.resource('ServiceMonitor','central-postgres',ns,api='monitoring.coreos.com/v1',spec={'selector':{'matchLabels':{'app':'postgres-metrics'}},'endpoints':[{'port':'metrics','interval':'60s','scrapeTimeout':'20s'}]}))
- rules=[{'alert':'CentralPostgresUnavailable','expr':f'central_postgres_up{{namespace="{ns}"}} == 0','for':'2m','labels':{'severity':'critical'},'annotations':{'summary':'Centrale PostgreSQL niet bereikbaar ('+tier+')'}},
+ rules=[{'alert':'CentralPostgresVolumeFull','expr':f'kubelet_volume_stats_available_bytes{{namespace="{ns}",persistentvolumeclaim="postgres-data"}} / kubelet_volume_stats_capacity_bytes{{namespace="{ns}",persistentvolumeclaim="postgres-data"}} < 0.15','for':'5m','labels':{'severity':'critical'},'annotations':{'summary':'PostgreSQL volume minder dan 15% vrij'}},
+ {'alert':'CentralPostgresUnavailable','expr':f'central_postgres_up{{namespace="{ns}"}} == 0','for':'2m','labels':{'severity':'critical'},'annotations':{'summary':'Centrale PostgreSQL niet bereikbaar ('+tier+')'}},
  {'alert':'CentralPostgresConnectionsHigh','expr':f'central_postgres_connections{{namespace="{ns}"}} / central_postgres_max_connections{{namespace="{ns}"}} > 0.8','for':'10m','labels':{'severity':'warning'},'annotations':{'summary':'PostgreSQL verbindingen boven 80%'}},
  {'alert':'CentralPostgresMetricsMissing','expr':f'absent(up{{namespace="{ns}",service="postgres-metrics"}} == 1)','for':'5m','labels':{'severity':'critical'},'annotations':{'summary':'PostgreSQL monitoring ontbreekt'}}]
  if tier=='production':
@@ -53,8 +54,8 @@ pod['volumes'].append({'name':'controller','secret':{'secretName':'postgres-cred
 pod['containers'][0]['volumeMounts'].append({'name':'controller','mountPath':'/controller','readOnly':True})
 pod['containers'][0]['readinessProbe']={'exec':{'command':['python3','-c',"import json,time; s=json.load(open('/tmp/controller-status.json')); assert not s['failed'] and time.time()-s['time']<150"]},'initialDelaySeconds':15,'periodSeconds':30}
 pod['containers'][0]['env'] += [{'name':'MAX_PREVIEW_DATABASES','value':'8'},{'name':'PREVIEW_DELETE_GRACE_SECONDS','value':'3600'}]
-ops.append(b.resource('Deployment','postgres-preview-controller',ns,api='apps/v1',spec={'replicas':0,'selector':{'matchLabels':{'app':'postgres-preview-controller'}},'template':{'metadata':{'labels':{'app':'postgres-preview-controller','postgres.vdzonsoftware.nl/operator':'true'}},'spec':pod}}))
-# Start only after the existing preview database has been imported and registered.
+ops.append(b.resource('Deployment','postgres-preview-controller',ns,api='apps/v1',spec={'replicas':1,'selector':{'matchLabels':{'app':'postgres-preview-controller'}},'template':{'metadata':{'labels':{'app':'postgres-preview-controller','postgres.vdzonsoftware.nl/operator':'true'}},'spec':pod}}))
+# The existing preview was imported and registered before enabling this deployment.
 ops.append(b.resource('ClusterRole','postgres-preview-controller',api='rbac.authorization.k8s.io/v1',rules=[
  {'apiGroups':[''],'resources':['namespaces'],'verbs':['get','list']},
  {'apiGroups':[''],'resources':['secrets'],'resourceNames':['preview-postgres'],'verbs':['get','patch']},

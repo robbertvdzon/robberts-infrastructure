@@ -374,5 +374,13 @@ if __name__ == '__main__':
     try:
         {'provision': provision, 'backup': backup, 'restorecheck': restorecheck, 'controller':controller, 'metrics':metrics}[sys.argv[1]]()
     except Exception as exc:
-        log('operation_failed', operation=sys.argv[1] if len(sys.argv)>1 else 'missing', error=type(exc).__name__)
+        mode=sys.argv[1] if len(sys.argv)>1 else 'missing'
+        if mode in ['backup','restorecheck']:
+            try:
+                path=Path('/backups/status.json' if mode=='backup' else '/backups/restore-status.json')
+                state=json.loads(path.read_text()) if path.exists() else {}
+                state.update({'failed':True,'attempt':time.time()})
+                temp=path.with_suffix('.tmp');temp.write_text(json.dumps(state));os.replace(temp,path)
+            except Exception: pass
+        log('operation_failed', operation=mode, error=type(exc).__name__)
         sys.exit(1)

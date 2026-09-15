@@ -14,7 +14,7 @@ if not STATE.exists() and (ROOT/'manifests/postgresql/production/sealed-credenti
  raise RuntimeError('Refusing to replace deployed credentials without the original private state')
 state=json.loads(STATE.read_text()) if STATE.exists() else {}
 PG='docker.io/library/postgres@sha256:1938c16e9d2f10a6a3623b344b64ae8d45f407f2c5f34f0979468bb689b9227a'
-PLATFORM=os.environ.get('PLATFORM_IMAGE','ghcr.io/robbertvdzon/postgresql-platform@sha256:114644f9dd8476dffc045caed753506668a442fbb7359fc432b2822448f671aa')
+PLATFORM=os.environ.get('PLATFORM_IMAGE','ghcr.io/robbertvdzon/postgresql-platform@sha256:cbf713d8146f407dd1f1b72214546dacef73b209c8bb621ad02a7669dfc87701')
 REGISTRY={
 'production':[{'name':n,**opts} for n,opts in [('ar_prod',{}),('hkh_prod',{}),('hkh_autopilot_prod',{}),('pf_prod',{}),('pf_legacy_prod',{'archive':True}),('pvdd_prod',{}),('sf_prod',{'schema':'software_factory'})]],
 'nonproduction':[{'name':n} for n in ['ar_acc','hkh_acc','hkh_autopilot_acc','pf_acc','pvdd_acc']]}
@@ -111,6 +111,6 @@ host all all 0.0.0.0/0 reject
  docs.append(resource('NetworkPolicy','operator-egress',ns,api='networking.k8s.io/v1',spec={'podSelector':{'matchLabels':{'postgres.vdzonsoftware.nl/operator':'true'}},'policyTypes':['Egress'],'egress':[{'to':[{'podSelector':{'matchLabels':{'app':'central-postgres'}}}],'ports':[{'protocol':'TCP','port':5432}]},{'ports':[{'protocol':'UDP','port':53},{'protocol':'TCP','port':53},{'protocol':'UDP','port':5353},{'protocol':'TCP','port':5353}]},{'ports':[{'protocol':'TCP','port':443},{'protocol':'TCP','port':6443}]}]}))
  write(folder/'resources.yaml',docs)
  write(folder/'kustomization.yaml',[{'apiVersion':'kustomize.config.k8s.io/v1beta1','kind':'Kustomization','resources':['resources.yaml','sealed-credentials.yaml','sealed-tls.yaml']}])
- app=resource('Application','postgres-'+tier,'argocd',api='argoproj.io/v1alpha1',spec={'project':'default','source':{'repoURL':'https://github.com/robbertvdzon/robberts-infrastructure.git','targetRevision':'main','path':'manifests/postgresql/'+tier},'destination':{'server':'https://kubernetes.default.svc','namespace':ns},'syncPolicy':{'automated':{'prune':False,'selfHeal':True},'syncOptions':['CreateNamespace=true']}})
+ app=resource('Application','postgres-'+tier,'argocd',api='argoproj.io/v1alpha1',spec={'project':'postgresql-platform','source':{'repoURL':'https://github.com/robbertvdzon/robberts-infrastructure.git','targetRevision':'main','path':'manifests/postgresql/'+tier},'destination':{'server':'https://kubernetes.default.svc','namespace':ns},'syncPolicy':{'automated':{'prune':False,'selfHeal':True},'syncOptions':['CreateNamespace=true']}})
  write(ROOT/'manifests/root-app/apps'/('postgres-'+tier+'-application.yaml'),[app])
 print('Generated two isolated PostgreSQL manifests and strict SealedSecrets; credentials were not printed.')
