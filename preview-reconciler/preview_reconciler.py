@@ -42,6 +42,7 @@ RULES = (
     Rule("product-factory", re.compile(r"^product-factory-pr-(\d+)$")),
     Rule("robberts-assistent", re.compile(r"^robberts-assistent-pr-(\d+)$")),
     Rule("pvdd", re.compile(r"^pvdd-pr-(\d+)$")),
+    Rule("software-factory-test-repository", re.compile(r"^sf-test-pr-(\d+)$")),
 )
 
 
