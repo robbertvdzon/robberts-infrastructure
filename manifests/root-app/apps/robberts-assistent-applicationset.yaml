@@ -47,6 +47,21 @@ spec:
         path: deploy/overlays/preview
         kustomize:
           namespace: 'robberts-assistent-pr-{{.number}}'
+          patches:
+            - target:
+                kind: Route
+                name: robberts-assistent-frontend
+              patch: |-
+                - op: add
+                  path: /spec/host
+                  value: 'robberts-assistent-pr-{{.number}}.vdzonsoftware.nl'
+            - target:
+                kind: Route
+                name: groentetuin-frontend
+              patch: |-
+                - op: add
+                  path: /spec/host
+                  value: 'groentetuin-pr-{{.number}}.vdzonsoftware.nl'
           images:
             # Lookup-naam moet de FULL URL zijn — deploy/base/kustomization.yaml
             # heeft de image-placeholders al gemapped naar de volle URL.
