@@ -74,6 +74,15 @@ class FakeKubernetes:
 
 
 class ReconcilerTest(unittest.TestCase):
+    def test_all_supported_projects_are_cleaned_and_open_previews_survive(self):
+        for repository, prefix in [("robberts-assistent", "robberts-assistent"), ("pvdd", "pvdd"), ("product-factory", "product-factory")]:
+            with self.subTest(repository=repository):
+                old = namespace(f"{prefix}-pr-7", repository, 7, {ORPHAN_AT: "1", ORPHAN_COUNT: "2"})
+                active = namespace(f"{prefix}-pr-8", repository, 8)
+                kube = FakeKubernetes([old, active])
+                Reconciler(FakeGitHub({repository: {8}}), kube, Metrics(), 60, lambda: 100).run_once()
+                self.assertEqual([f"{prefix}-pr-7"], kube.deleted)
+
     def test_delete_uses_kubernetes_delete_options(self):
         calls = []
         client = object.__new__(KubernetesClient)

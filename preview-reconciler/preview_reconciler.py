@@ -40,6 +40,8 @@ RULES = (
     Rule("hkh", re.compile(r"^hkh-pr-(\d+)$")),
     Rule("hkh-autopilot", re.compile(r"^hkh-autopilot-pr-(\d+)$")),
     Rule("product-factory", re.compile(r"^product-factory-pr-(\d+)$")),
+    Rule("robberts-assistent", re.compile(r"^robberts-assistent-pr-(\d+)$")),
+    Rule("pvdd", re.compile(r"^pvdd-pr-(\d+)$")),
 )
 
 

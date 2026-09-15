@@ -4,11 +4,8 @@
 # eigen database-labeller: robberts-assistent-backend heeft geen database
 # (notities zijn in-memory), dus er is geen Neon-branch-per-preview nodig.
 #
-# Let op dezelfde bekende beperking als bij personal-feed: CreateNamespace=true
-# namespaces worden niet als resource getrackt en dus nooit automatisch
-# geprund bij PR-merge/-close. Zie docs/cluster-inventory.md §8. Ruim
-# verweesde robberts-assistent-pr-*-namespaces zo nu en dan handmatig op met
-# `oc delete ns robberts-assistent-pr-<N>`.
+# De preview-reconciler verwijdert namespaces van gesloten PRs na een wachttijd.
+# Beheerlabels koppelen elke namespace aan de repository en PR.
 #
 # Hergebruikt de bestaande `github-pr-token`-secret (github-pr-token-sealed-
 # secret.yaml hiernaast) — die PAT heeft toegang tot alle repo's van dit
@@ -66,6 +63,9 @@ spec:
         managedNamespaceMetadata:
           labels:
             argocd.argoproj.io/managed-by: argocd
+            preview.vdzonsoftware.nl/managed-by: preview-reconciler
+            preview.vdzonsoftware.nl/repository: robberts-assistent
+            preview.vdzonsoftware.nl/pr-number: '{{.number}}'
         syncOptions:
           - CreateNamespace=true
         retry:
