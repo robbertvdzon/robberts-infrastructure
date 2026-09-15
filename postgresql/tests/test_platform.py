@@ -12,8 +12,12 @@ class Tests(unittest.TestCase):
         a=p.preview_identity('hkh-pr-123','11111111-1111-1111-1111-111111111111')[1]
         b=p.preview_identity('hkh-pr-123','22222222-2222-2222-2222-222222222222')[1]
         self.assertNotEqual(a,b)
-        for ns in ['hkh','hkh-acceptance','postgres-production','hkh-pr-123-other','pnf-pr-1']:
+        for ns in ['hkh','hkh-acceptance','postgres-production','hkh-pr-123-other','unknown-pr-1']:
             with self.assertRaises(ValueError): p.preview_identity(ns,'11111111-1111-1111-1111-111111111111')
+    def test_newsfeed_preview_is_separate(self):
+        app,db=p.preview_identity('pnf-pr-1','11111111-1111-1111-1111-111111111111')
+        self.assertEqual('pnf',app)
+        self.assertTrue(db.startswith('pnf_pr_1_'))
     def test_retention_keeps_last_good_and_recent_points(self):
         now=1800000000
         items=[{'run':str(n),'epoch':now-n*86400} for n in range(500)]
