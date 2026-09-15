@@ -412,7 +412,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: provision
-        image: ghcr.io/robbertvdzon/postgresql-platform@sha256:13007b38d6b9cc504b64d9a44a254ca4d18dbdcd086a3a34bdbb3f9a1c8947e9
+        image: ghcr.io/robbertvdzon/postgresql-platform@sha256:98e9b47349b6f6df19714537f3cf39e46d8c6c38229109ce79cafddb9a8e342f
         args:
         - provision
         env:
