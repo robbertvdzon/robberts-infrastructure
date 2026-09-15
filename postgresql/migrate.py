@@ -154,6 +154,8 @@ def start(key):
  elif not (PRIVATE/(key+'-previous-deployment.json')).exists():raise RuntimeError('acceptance backend was not stopped')
  if backend:
   secret=json.loads((PRIVATE/(key+'-secret.json')).read_text())
+  if secret['metadata']['name']=='central-postgres':
+   secret['metadata'].setdefault('annotations',{})['sealedsecrets.bitnami.com/managed']='true'
   run(['oc','apply','-f','-'],data=json.dumps(secret).encode())
   patch=yaml.safe_load((WORK/repo/overlay/'central-postgres-patch.yaml').read_text())
   oc('patch','deployment',backend,'-n',ns,'--type=strategic','-p',json.dumps(patch))

@@ -192,7 +192,8 @@ Alertmanager-notificatiekanaal; er is geen e-mail- of chatbestemming verzonnen.
 - Logische restores van alle elf brondatabases, met dezelfde aantallen, Flyway-
   checksums en sequencewaarden vóór vrijgave van writers.
 - Nieuwe PostgreSQL-schema's voor beide voormalige H2-acceptatieomgevingen.
-- Gezonde deployments na iedere migratie.
+- Gezonde deployments na iedere migratie en opnieuw na een herstart van beide
+  centrale servers; alle 13 applicatiedatabases bleven behouden.
 - Volledige encrypted backup en echte restorecontrole van alle zeven productiedatabases.
 - Nieuwe PNF- en huidige PF-previews vanaf lege databases; daarna verwijdering van
   namespace, database en rol via de normale controllerlogica met een reeds verlopen
@@ -206,3 +207,7 @@ Alertmanager-notificatiekanaal; er is geen e-mail- of chatbestemming verzonnen.
 
 De historische V8/V9-migraties van HKH Autopilot zijn uit Git teruggehaald met
 checksums die exact overeenkomen met de reeds toegepaste productiemigraties.
+
+Bestaande Secrets zijn tijdens de overdracht aan SealedSecrets expliciet geadopteerd
+met `sealedsecrets.bitnami.com/managed=true`, volgens de
+[SealedSecrets-documentatie](https://github.com/bitnami/sealed-secrets#managing-existing-secrets).
