@@ -53,6 +53,8 @@ spec:
                     spec:
                       containers:
                       - name: runtime
+                        # SHA-tagged images are immutable; reuse the existing node cache.
+                        imagePullPolicy: IfNotPresent
                         resources:
                           requests:
                             memory: 320Mi
@@ -81,6 +83,8 @@ spec:
                     spec:
                       containers:
                       - name: dashboard-backend
+                        # SHA-tagged images are immutable; reuse the existing node cache.
+                        imagePullPolicy: IfNotPresent
                         resources:
                           requests:
                             memory: 320Mi
@@ -136,6 +140,8 @@ spec:
                     spec:
                       containers:
                       - name: dashboard-frontend
+                        # SHA-tagged images are immutable; reuse the existing node cache.
+                        imagePullPolicy: IfNotPresent
                         resources:
                           requests:
                             memory: 32Mi
