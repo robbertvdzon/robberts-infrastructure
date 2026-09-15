@@ -375,6 +375,7 @@ def metrics():
                 lines.append('central_postgres_up 1')
             except Exception: lines=['central_postgres_up 0']
             for filename,prefix in [('status.json','backup'),('restore-status.json','restore')]:
+                if not Path('/backups').exists(): continue
                 path=Path('/backups')/filename
                 if path.exists():
                     state=json.loads(path.read_text())
