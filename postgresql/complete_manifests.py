@@ -51,6 +51,7 @@ ns='postgres-nonproduction';folder=b.ROOT/'manifests/postgresql/nonproduction';o
 pod=b.base_pod(ns,'controller',True);pod['restartPolicy']='Always';pod['automountServiceAccountToken']=True
 pod['volumes'].append({'name':'controller','secret':{'secretName':'postgres-credentials','items':[{'key':'controller-master','path':'master'}]}})
 pod['containers'][0]['volumeMounts'].append({'name':'controller','mountPath':'/controller','readOnly':True})
+pod['containers'][0]['readinessProbe']={'exec':{'command':['python3','-c',"import json,time; s=json.load(open('/tmp/controller-status.json')); assert not s['failed'] and time.time()-s['time']<150"]},'initialDelaySeconds':15,'periodSeconds':30}
 pod['containers'][0]['env'] += [{'name':'MAX_PREVIEW_DATABASES','value':'8'},{'name':'PREVIEW_DELETE_GRACE_SECONDS','value':'3600'}]
 ops.append(b.resource('Deployment','postgres-preview-controller',ns,api='apps/v1',spec={'replicas':0,'selector':{'matchLabels':{'app':'postgres-preview-controller'}},'template':{'metadata':{'labels':{'app':'postgres-preview-controller','postgres.vdzonsoftware.nl/operator':'true'}},'spec':pod}}))
 # Start only after the existing preview database has been imported and registered.
@@ -58,11 +59,11 @@ ops.append(b.resource('ClusterRole','postgres-preview-controller',api='rbac.auth
  {'apiGroups':[''],'resources':['namespaces'],'verbs':['get','list']},
  {'apiGroups':[''],'resources':['secrets'],'resourceNames':['preview-postgres'],'verbs':['get','patch']},
  {'apiGroups':[''],'resources':['secrets'],'verbs':['create']},
- {'apiGroups':['apps'],'resources':['deployments'],'verbs':['get','list','patch']}]))
+ {'apiGroups':['apps'],'resources':['deployments'],'verbs':['get','list']}]))
 ops.append(b.resource('ClusterRoleBinding','postgres-preview-controller',api='rbac.authorization.k8s.io/v1',subjects=[{'kind':'ServiceAccount','name':'postgres-controller','namespace':ns}],roleRef={'apiGroup':'rbac.authorization.k8s.io','kind':'ClusterRole','name':'postgres-preview-controller'}))
 policy=b.resource('ValidatingAdmissionPolicy','postgres-preview-controller-boundary',api='admissionregistration.k8s.io/v1',spec={'failurePolicy':'Fail','matchConstraints':{'resourceRules':[{'apiGroups':['','apps'],'apiVersions':['v1'],'operations':['CREATE','UPDATE'],'resources':['secrets','deployments']}]},
  'matchConditions':[{'name':'controller-identity','expression':"request.userInfo.username == 'system:serviceaccount:postgres-nonproduction:postgres-controller'"}],
- 'validations':[{'expression':"request.namespace.matches('^(hkh-autopilot|hkh|product-factory|pvdd)-pr-[1-9][0-9]*$')",'message':'Preview controller may write only approved PR namespaces'},
+ 'validations':[{'expression':"request.namespace.matches('^(hkh-autopilot|hkh|product-factory|pvdd|pnf)-pr-[1-9][0-9]*$')",'message':'Preview controller may write only approved PR namespaces'},
  {'expression':"request.resource.resource != 'secrets' || object.metadata.name == 'preview-postgres'",'message':'Only preview-postgres may be written'},
  {'expression':"request.resource.resource != 'deployments' || object.metadata.name in ['backend','runtime','product-factory-backend']",'message':'Only approved preview backends may be changed'}]})
 ops.append(policy)

@@ -21,8 +21,9 @@ import urllib.request
 from datetime import datetime, timezone
 
 NAME = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
-PREVIEW = re.compile(r'^(hkh-autopilot|hkh|product-factory|pvdd)-pr-([1-9][0-9]*)$')
+PREVIEW = re.compile(r'^(hkh-autopilot|hkh|product-factory|pvdd|pnf)-pr-([1-9][0-9]*)$')
 APPS = {
+    'pnf': ('pnf', 'PNF_DATABASE_URL', 'SPRING_DATASOURCE_USERNAME', 'SPRING_DATASOURCE_PASSWORD', ['backend']),
     'hkh': ('hkh', 'HKH_DATABASE_URL', 'HKH_DATABASE_USER', 'HKH_DATABASE_PASSWORD', ['backend']),
     'hkh-autopilot': ('hkh_autopilot', 'HKH_DATABASE_URL', 'HKH_DATABASE_USER', 'HKH_DATABASE_PASSWORD', ['backend']),
     'product-factory': ('pf', 'PF_DB_URL', 'PF_DB_USERNAME', 'PF_DB_PASSWORD', ['runtime', 'product-factory-backend']),
@@ -314,22 +315,6 @@ def preview_cycle(kube):
             body = {'apiVersion':'v1','kind':'Secret','metadata':{'name':'preview-postgres','namespace':ns},'type':'Opaque','data':data}
             if current.get('http_error') == 404: kube.request('POST', '/api/v1/namespaces/'+ns+'/secrets', body)
             else: kube.request('PATCH', path, {'data':data})
-        _,urlvar,uservar,passvar,names = APPS[app]
-        deployments = kube.request('GET', '/apis/apps/v1/namespaces/'+ns+'/deployments')['items']
-        for dep in deployments:
-            if dep['metadata']['name'] not in names: continue
-            template = dep['spec']['template']; marker = template['metadata'].get('annotations',{}).get('postgres.vdzonsoftware.nl/database')
-            if marker == db: continue
-            containers = template['spec']['containers']
-            for c in containers:
-                env = [e for e in c.get('env',[]) if e['name'] not in [urlvar,uservar,passvar,'SPRING_DATASOURCE_URL','SPRING_DATASOURCE_USERNAME','SPRING_DATASOURCE_PASSWORD','SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE','SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE']]
-                for key,field in [(urlvar,'url'),(uservar,'username'),(passvar,'password'),('SPRING_DATASOURCE_URL','url'),('SPRING_DATASOURCE_USERNAME','username'),('SPRING_DATASOURCE_PASSWORD','password')]:
-                    env.append({'name':key,'valueFrom':{'secretKeyRef':{'name':'preview-postgres','key':field}}})
-                env += [{'name':'SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE','value':'5'}, {'name':'SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE','value':'0'}]
-                c['env']=env
-                c['volumeMounts'] = [m for m in c.get('volumeMounts',[]) if m['name']!='central-postgres-ca'] + [{'name':'central-postgres-ca','mountPath':'/etc/postgres-ca','readOnly':True}]
-            kube.request('PATCH','/apis/apps/v1/namespaces/'+ns+'/deployments/'+dep['metadata']['name'],
-                {'spec':{'template':{'metadata':{'annotations':{'postgres.vdzonsoftware.nl/database':db}, 'labels':{'postgres.vdzonsoftware.nl/client':'true'}},'spec':{'containers':containers, 'volumes':[v for v in template['spec'].get('volumes',[]) if v['name']!='central-postgres-ca'] + [{'name':'central-postgres-ca','secret':{'secretName':'preview-postgres','items':[{'key':'ca.crt','path':'ca.crt'}]}}]}}}})
         log('preview_ready', namespace=ns, database=db)
     for entry in registered:
         if entry['uid'] in alive: continue

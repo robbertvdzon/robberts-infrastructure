@@ -14,7 +14,7 @@ if not STATE.exists() and (ROOT/'manifests/postgresql/production/sealed-credenti
  raise RuntimeError('Refusing to replace deployed credentials without the original private state')
 state=json.loads(STATE.read_text()) if STATE.exists() else {}
 PG='docker.io/library/postgres@sha256:1938c16e9d2f10a6a3623b344b64ae8d45f407f2c5f34f0979468bb689b9227a'
-PLATFORM=os.environ.get('PLATFORM_IMAGE','ghcr.io/robbertvdzon/postgresql-platform@sha256:068c7115bbff31519e889e2f5680ba50acefd1c47ffc461ca61da98bfed47193')
+PLATFORM=os.environ.get('PLATFORM_IMAGE','ghcr.io/robbertvdzon/postgresql-platform@sha256:114644f9dd8476dffc045caed753506668a442fbb7359fc432b2822448f671aa')
 REGISTRY={
 'production':[{'name':n,**opts} for n,opts in [('ar_prod',{}),('hkh_prod',{}),('hkh_autopilot_prod',{}),('pf_prod',{}),('pf_legacy_prod',{'archive':True}),('pvdd_prod',{}),('sf_prod',{'schema':'software_factory'})]],
 'nonproduction':[{'name':n} for n in ['ar_acc','hkh_acc','hkh_autopilot_acc','pf_acc','pvdd_acc']]}
