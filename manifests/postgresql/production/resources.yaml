@@ -193,25 +193,16 @@ data:
     log_error_verbosity=''terse''
 
     '
-  pg_hba.conf: 'local all postgres trust
-
+  pg_hba.conf: |-
+    local all postgres trust
     local all all reject
-
     hostnossl all all 0.0.0.0/0 reject
-
     hostssl all postgres 0.0.0.0/0 scram-sha-256
-
     hostssl all platform_backup 0.0.0.0/0 scram-sha-256
-
     hostssl postgres platform_monitor 0.0.0.0/0 scram-sha-256
-
     hostssl all robbert_db_viewer 0.0.0.0/0 scram-sha-256
-
     hostssl sameuser all 0.0.0.0/0 scram-sha-256
-
     host all all 0.0.0.0/0 reject
-
-    '
   registry.json: "{\n  \"databases\": [\n    {\n      \"name\": \"ar_prod\"\n    },\n\
     \    {\n      \"name\": \"hkh_prod\"\n    },\n    {\n      \"name\": \"hkh_autopilot_prod\"\
     \n    },\n    {\n      \"name\": \"pf_prod\"\n    },\n    {\n      \"name\": \"\
