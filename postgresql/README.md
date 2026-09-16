@@ -183,7 +183,7 @@ wijzigt niets in het cluster:
 ./scripts/postgresql/port-forward.sh
 ```
 
-Het script bindt uitsluitend op `127.0.0.1` en houdt de tunnels open tot `Ctrl-C`:
+Het script bindt uitsluitend op `127.0.0.1`, herstelt een verbroken OpenShift-tunnel automatisch na drie seconden en stopt pas bij `Ctrl-C`:
 
 | Server | Host | Poort |
 |---|---|---:|
