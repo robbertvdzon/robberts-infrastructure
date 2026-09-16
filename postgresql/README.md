@@ -15,6 +15,7 @@ uitgevoerd met toestemming voor downtime, zonder observatieperiode van 24–48 u
 | Product Factory V1, archief | `pf_legacy_prod`, eigenaar `NOLOGIN` | — |
 | PVDD | `pvdd_prod` | `pvdd_acc` |
 | Software Factory | `sf_prod`, schema `software_factory` | — |
+| Mace Club Heemskerk | `mch_prod` | — |
 
 - Productie: `postgres.postgres-production.svc:5432`, PVC `postgres-data`, 20 GiB.
 - Non-production: `postgres.postgres-nonproduction.svc:5432`, PVC 10 GiB.
@@ -170,6 +171,31 @@ van manifests. Ze vereisen de oorspronkelijke private state en weigeren die stil
 vervangen. Gebruik ze niet als AI-workerjob. `migrate.py` en
 `migrate_existing_preview.py` documenteren de eenmalige migratie; voer ze niet
 opnieuw uit op gevulde doelen.
+
+## Lokale databaseclient (DBeaver / pgAdmin Desktop)
+
+De PostgreSQL-services zijn bewust alleen `ClusterIP`: er is geen NodePort, publieke
+TCP-route of permanente pgAdmin-workload. Gebruik vanaf Robberts laptop een tijdelijke,
+lokaal gebonden OpenShift-tunnel. Dit vereist een bestaande, geautoriseerde `oc login` en
+wijzigt niets in het cluster:
+
+```sh
+./scripts/postgresql/port-forward.sh
+```
+
+Het script bindt uitsluitend op `127.0.0.1` en houdt de tunnels open tot `Ctrl-C`:
+
+| Server | Host | Poort |
+|---|---|---:|
+| Productie | `127.0.0.1` | 15432 |
+| Non-production | `127.0.0.1` | 15433 |
+
+In DBeaver of pgAdmin Desktop maak je per rij één PostgreSQL-verbinding. Kies host in
+plaats van een URL en schakel in DBeaver **Show all databases** in. Gebruik een afzonderlijke
+persoonlijke beheer- of leesrol, nooit een applicatie-, backup- of clusterbeheerderscredential.
+Het script bevat en leest geen databasewachtwoorden. Voor alleen één server zijn
+`./scripts/postgresql/port-forward.sh production` en
+`./scripts/postgresql/port-forward.sh nonproduction` beschikbaar.
 
 ## Monitoring
 
