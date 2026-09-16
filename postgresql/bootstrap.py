@@ -78,6 +78,7 @@ hostnossl all all 0.0.0.0/0 reject
 hostssl all postgres 0.0.0.0/0 scram-sha-256
 hostssl all platform_backup 0.0.0.0/0 scram-sha-256
 hostssl postgres platform_monitor 0.0.0.0/0 scram-sha-256
+hostssl all robbert_db_viewer 0.0.0.0/0 scram-sha-256
 hostssl sameuser all 0.0.0.0/0 scram-sha-256
 host all all 0.0.0.0/0 reject
 """
