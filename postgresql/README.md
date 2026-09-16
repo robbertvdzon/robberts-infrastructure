@@ -190,11 +190,32 @@ Het script bindt uitsluitend op `127.0.0.1`, herstelt een verbroken OpenShift-tu
 | Productie | `127.0.0.1` | 15432 |
 | Non-production | `127.0.0.1` | 15433 |
 
-In DBeaver of pgAdmin Desktop maak je per rij één PostgreSQL-verbinding. Kies host in
-plaats van een URL en schakel in DBeaver **Show all databases** in. Gebruik een afzonderlijke
-persoonlijke beheer- of leesrol, nooit een applicatie-, backup- of clusterbeheerderscredential.
-Het script bevat en leest geen databasewachtwoorden. Voor alleen één server zijn
-`./scripts/postgresql/port-forward.sh production` en
+Gebruik **DBeaver Community** als databaseclient. Maak één PostgreSQL-verbinding voor
+productie met onderstaande instellingen. De tweede verbinding voor non-production gebruikt
+alleen poort `15433`.
+
+| Instelling | Productie |
+|---|---|
+| Host | `127.0.0.1` |
+| Poort | `15432` |
+| Database | `postgres` |
+| Gebruiker | `robbert_db_viewer` |
+| SSL-modus | `require` |
+| SSH-tunnel | uit |
+
+Schakel in DBeaver **Show all databases** in. Daarna verschijnen de applicatiedatabases onder
+**Databases**, bijvoorbeeld `mch_prod`, `hkh_prod` en `pf_prod`.
+
+Het wachtwoord staat alleen lokaal in `~/.pgpass` (rechten `0600`) en staat niet in Git. Kopieer
+het rechtstreeks naar het klembord, zodat je het in DBeaver kunt plakken:
+
+```sh
+cut -d: -f5 ~/.pgpass | head -n 1 | pbcopy
+```
+
+Gebruik nooit een applicatie-, backup- of clusterbeheerderscredential in DBeaver. De rol
+`robbert_db_viewer` is bedoeld voor lezen en heeft standaard read-only transacties. Voor alleen
+één server zijn `./scripts/postgresql/port-forward.sh production` en
 `./scripts/postgresql/port-forward.sh nonproduction` beschikbaar.
 
 ## Monitoring
